@@ -1,10 +1,25 @@
 # app.py
 import re
+import io
+import hashlib
 from pathlib import Path
 from datetime import datetime
 
 import streamlit as st
 import requests
+from PIL import Image
+
+# High-quality PDF (no downscale / no recompress artifacts)
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+
+# Optional HEIC/HEIF support
+try:
+    import pillow_heif  # type: ignore
+    pillow_heif.register_heif_opener()
+    HEIF_OK = True
+except Exception:
+    HEIF_OK = False
 
 # ----------------------------------------------------
 # STREAMLIT CONFIG
@@ -12,17 +27,160 @@ import requests
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE (Fancy screens)
+# STYLE: LIGHT UI + HIDE TOP DARK BANNER (STREAMLIT HEADER) + THEME-SAFE WIDGETS
 # ----------------------------------------------------
 st.markdown(
     """
 <style>
+/* --- Hide Streamlit chrome (top bar / menu / footer) --- */
+header[data-testid="stHeader"] {display:none !important;}
+#MainMenu {visibility: hidden !important;}
+footer {visibility: hidden !important;}
+/* Sometimes Streamlit injects extra padding for the hidden header */
+div[data-testid="stAppViewContainer"] {padding-top: 0rem !important;}
+
+/* Force a light-looking app */
+.stApp {
+  background: #ffffff !important;
+  color: #0B0F14 !important;
+}
+[data-testid="stAppViewContainer"]{
+  background: #ffffff !important;
+}
+section[data-testid="stSidebar"]{
+  background: #F5F7FA !important;
+}
+
+/* Text */
+h1, h2, h3, h4, h5, h6, p, li, label, span, div {
+  color: #0B0F14 !important;
+}
+
+/* Inputs */
+input, textarea {
+  background: #FFFFFF !important;
+  color: #0B0F14 !important;
+  border: 1px solid rgba(0,0,0,0.15) !important;
+  border-radius: 10px !important;
+}
+
+/* -----------------------------
+   FILE UPLOADER: theme-safe
+------------------------------ */
+[data-testid="stFileUploaderDropzone"]{
+  background: #F7FAFC !important;
+  border: 1px dashed rgba(0,0,0,0.25) !important;
+  border-radius: 14px !important;
+}
+[data-testid="stFileUploaderDropzone"] *{
+  color: #0B0F14 !important;
+}
+[data-testid="stFileUploaderDropzone"] button{
+  background: #00A8E0 !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+}
+[data-testid="stFileUploaderDropzone"] button *{
+  color: #FFFFFF !important;
+}
+[data-testid="stFileUploaderDropzone"] button:hover{
+  filter: brightness(0.95) !important;
+}
+[data-testid="stFileUploaderDropzone"] small{
+  color: rgba(11,15,20,0.70) !important;
+}
+[data-testid="stFileUploaderDropzone"][data-active="true"]{
+  background: rgba(0,168,224,0.08) !important;
+  border-color: rgba(0,168,224,0.45) !important;
+}
+
+/* -----------------------------
+   CAMERA: theme-safe Take Photo
+------------------------------ */
+[data-testid="stCameraInput"]{
+  background: #F7FAFC !important;
+  border: 1px dashed rgba(0,0,0,0.20) !important;
+  border-radius: 14px !important;
+}
+[data-testid="stCameraInput"] *{
+  color: #0B0F14 !important;
+}
+[data-testid="stCameraInput"] button{
+  background: #00A8E0 !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+}
+[data-testid="stCameraInput"] button *{
+  color: #FFFFFF !important;
+}
+[data-testid="stCameraInput"] button:hover{
+  filter: brightness(0.95) !important;
+}
+
+/* Buttons */
+.stButton > button {
+  background: #00A8E0 !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  padding: 0.55rem 1rem !important;
+  font-weight: 800 !important;
+}
+.stButton > button:hover{
+  filter: brightness(0.95);
+}
+
+/* Alerts */
+[data-testid="stAlert"]{
+  background: #F5F7FA !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  color: #0B0F14 !important;
+}
+
+/* Expanders */
+details{
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  border-radius: 14px !important;
+  padding: 6px 10px !important;
+}
+
+/* Header */
+.brand-header{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding: 6px 0 12px 0;
+}
+.brand-title{
+  font-size: 1.6rem;
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 0;
+}
+.brand-subtitle{
+  margin: 4px 0 0 0;
+  opacity: 0.85;
+  font-size: 0.95rem;
+}
+.hr-soft{
+  border: none;
+  height: 1px;
+  background: rgba(0,0,0,0.08);
+  margin: 10px 0 16px 0;
+}
+
+/* Cards */
 .success-wrap{
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(0,0,0,0.08);
+  background: #FFFFFF;
   border-radius: 18px;
   padding: 22px 20px;
-  box-shadow: 0 12px 34px rgba(0,0,0,0.22);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.08);
 }
 .success-title{
   font-size: 1.6rem;
@@ -39,14 +197,14 @@ st.markdown(
   display: inline-block;
   padding: 7px 12px;
   border-radius: 999px;
-  background: rgba(34,197,94,0.18);
-  border: 1px solid rgba(34,197,94,0.35);
+  background: rgba(0,168,224,0.10);
+  border: 1px solid rgba(0,168,224,0.25);
   font-weight: 700;
   margin-right: 10px;
 }
 .success-meta{
   margin-top: 16px;
-  border-top: 1px solid rgba(255,255,255,0.10);
+  border-top: 1px solid rgba(0,0,0,0.08);
   padding-top: 14px;
   display: flex;
   gap: 10px;
@@ -55,8 +213,8 @@ st.markdown(
 .success-box{
   flex: 1;
   min-width: 180px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(0,0,0,0.08);
+  background: #F7FAFC;
   border-radius: 14px;
   padding: 12px 14px;
 }
@@ -72,7 +230,7 @@ st.markdown(
 }
 .preview-wrap{
   margin-top: 14px;
-  border-top: 1px solid rgba(255,255,255,0.10);
+  border-top: 1px solid rgba(0,0,0,0.08);
   padding-top: 14px;
 }
 .preview-title{
@@ -86,19 +244,49 @@ st.markdown(
 )
 
 # ----------------------------------------------------
-# FOLIO FORMAT (STRICT)
-# Example: 251215-0FF480
+# BRAND HEADER (logo + title)
+# ----------------------------------------------------
+def render_header():
+    logo_path = Path(__file__).parent / "att_logo.png"
+
+    c1, c2 = st.columns([1, 5], vertical_alignment="center")
+    with c1:
+        if logo_path.exists():
+            st.image(str(logo_path), use_container_width=True)
+
+    with c2:
+        st.markdown(
+            """
+<div class="brand-header">
+  <div>
+    <p class="brand-title">Documentos complementarios</p>
+    <p class="brand-subtitle">para continuar la cotización</p>
+  </div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown('<div class="hr-soft"></div>', unsafe_allow_html=True)
+
+    st.markdown(
+        """
+1) Escribe el **folio** de tu cotización (formato: `251215-0FF480`)  
+2) Sube fotos desde tu galería **y/o** toma fotos con la cámara (puedes tomar varias)  
+3) Presiona **Subir fotos** → se subirán al sistema   
+"""
+    )
+
+# ----------------------------------------------------
+# FOLIO FORMAT
 # ----------------------------------------------------
 FOLIO_PATTERN = re.compile(r"^\d{6}-[A-Z0-9]{6}$")
-
 
 def normalize_folio(raw: str) -> str:
     return (raw or "").strip().upper()
 
-
 def is_valid_folio(folio: str) -> bool:
     return bool(FOLIO_PATTERN.match(folio))
-
 
 # ----------------------------------------------------
 # ONEDRIVE / GRAPH HELPERS
@@ -119,19 +307,15 @@ def graph_token() -> str:
     r.raise_for_status()
     return r.json()["access_token"]
 
-
 def drive_base_url() -> str:
     user = st.secrets["azure_app"]["onedrive_user"]
     return f"https://graph.microsoft.com/v1.0/users/{user}/drive"
 
-
 def graph_headers_json() -> dict:
     return {"Authorization": f"Bearer {graph_token()}", "Content-Type": "application/json"}
 
-
 def graph_headers_binary(mime: str | None) -> dict:
     return {"Authorization": f"Bearer {graph_token()}", "Content-Type": mime or "application/octet-stream"}
-
 
 @st.cache_resource
 def root_id() -> str:
@@ -139,7 +323,6 @@ def root_id() -> str:
     r = requests.get(url, headers=graph_headers_json(), timeout=30)
     r.raise_for_status()
     return r.json()["id"]
-
 
 def ensure_folder(parent_item_id: str, folder_name: str) -> str:
     list_url = f"{drive_base_url()}/items/{parent_item_id}/children?$select=id,name,folder"
@@ -156,43 +339,100 @@ def ensure_folder(parent_item_id: str, folder_name: str) -> str:
     r.raise_for_status()
     return r.json()["id"]
 
-
 def ensure_path(folder_parts: list[str]) -> str:
     current = root_id()
     for name in folder_parts:
         current = ensure_folder(current, name)
     return current
 
-
 def upload_small_file_to_folder(folder_item_id: str, filename: str, file_bytes: bytes, mime_type: str | None) -> None:
     url = f"{drive_base_url()}/items/{folder_item_id}:/{filename}:/content"
-    r = requests.put(url, headers=graph_headers_binary(mime_type), data=file_bytes, timeout=120)
+    r = requests.put(url, headers=graph_headers_binary(mime_type), data=file_bytes, timeout=180)
     r.raise_for_status()
 
+# ----------------------------------------------------
+# DUPLICATE AVOIDANCE (per folio folder, by hash tag in filename)
+# ----------------------------------------------------
+def sha256_bytes(b: bytes) -> str:
+    return hashlib.sha256(b).hexdigest()
+
+def list_existing_hashes(folder_item_id: str, max_pages: int = 10) -> set[str]:
+    hashes = set()
+    url = f"{drive_base_url()}/items/{folder_item_id}/children?$select=name&$top=200"
+    for _ in range(max_pages):
+        r = requests.get(url, headers=graph_headers_json(), timeout=30)
+        r.raise_for_status()
+        data = r.json()
+        for it in data.get("value", []):
+            name = it.get("name", "")
+            m = re.search(r"__sha256_([0-9a-f]{12})", name)
+            if m:
+                hashes.add(m.group(1))
+        nxt = data.get("@odata.nextLink")
+        if not nxt:
+            break
+        url = nxt
+    return hashes
+
+# ----------------------------------------------------
+# PDF BUILDER (ReportLab, 1 image per page, no downscale)
+# ----------------------------------------------------
+def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
+    if not image_bytes_list:
+        raise ValueError("No hay imágenes para generar el PDF.")
+
+    out = io.BytesIO()
+    c = canvas.Canvas(out, pageCompression=0)
+
+    for b in image_bytes_list:
+        img = Image.open(io.BytesIO(b))
+
+        # Ensure RGB
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+
+        w_px, h_px = img.size
+
+        # Lossless PNG embedding to avoid JPEG recompression
+        png_buf = io.BytesIO()
+        img.save(png_buf, format="PNG", optimize=False)
+        png_buf.seek(0)
+
+        # Page size = image px dimensions (1 px = 1 pt)
+        c.setPageSize((w_px, h_px))
+        c.drawImage(ImageReader(png_buf), 0, 0, width=w_px, height=h_px, mask="auto")
+        c.showPage()
+
+    c.save()
+    out.seek(0)
+    return out.read()
 
 # ----------------------------------------------------
 # SESSION STATE
 # ----------------------------------------------------
 if "camera_photos" not in st.session_state:
-    st.session_state.camera_photos = []
-
+    st.session_state.camera_photos = []  # list[dict{bytes,mime,suffix}]
+if "gallery_photos" not in st.session_state:
+    st.session_state.gallery_photos = []  # list[dict{bytes,mime,suffix,name}]
 if "uploaded_ok" not in st.session_state:
     st.session_state.uploaded_ok = False
-
 if "uploaded_folio" not in st.session_state:
     st.session_state.uploaded_folio = ""
-
 if "uploaded_total" not in st.session_state:
     st.session_state.uploaded_total = 0
-
 if "uploaded_previews" not in st.session_state:
     st.session_state.uploaded_previews = []
-
 if "final_screen" not in st.session_state:
     st.session_state.final_screen = False
 
+def _guess_suffix(mime: str | None, fallback_name: str | None = None) -> str:
+    if fallback_name:
+        s = Path(fallback_name).suffix
+        if s:
+            return s.lower()
 
-def _guess_suffix(mime: str | None) -> str:
     if not mime:
         return ".jpg"
     m = mime.lower()
@@ -200,23 +440,24 @@ def _guess_suffix(mime: str | None) -> str:
         return ".png"
     if "heic" in m or "heif" in m:
         return ".heic"
+    if "jpeg" in m or "jpg" in m:
+        return ".jpg"
     return ".jpg"
-
 
 def reset_flow():
     st.session_state.camera_photos = []
+    st.session_state.gallery_photos = []
     st.session_state.uploaded_ok = False
     st.session_state.uploaded_folio = ""
     st.session_state.uploaded_total = 0
     st.session_state.uploaded_previews = []
     st.session_state.final_screen = False
 
-
 # ----------------------------------------------------
 # FINAL SCREEN
 # ----------------------------------------------------
 if st.session_state.final_screen:
-    st.title("📷 Documentos complementarios para continuar la cotización")
+    render_header()
 
     st.markdown(
         """
@@ -246,7 +487,6 @@ if st.session_state.final_screen:
     if st.button("🔁 Subir documentos de otra cotización", type="primary", use_container_width=True):
         reset_flow()
         st.rerun()
-
     st.stop()
 
 # ----------------------------------------------------
@@ -257,7 +497,7 @@ if st.session_state.uploaded_ok:
     total = st.session_state.uploaded_total
     previews = st.session_state.uploaded_previews or []
 
-    st.title("📷 Documentos complementarios para continuar la cotización")
+    render_header()
 
     st.markdown(
         f"""
@@ -296,7 +536,6 @@ if st.session_state.uploaded_ok:
         st.info("No hay vista previa disponible.")
 
     st.write("")
-
     colA, colB = st.columns([1, 1])
     with colA:
         if st.button("📤 Subir más fotos (otro folio)", type="primary", use_container_width=True):
@@ -312,15 +551,7 @@ if st.session_state.uploaded_ok:
 # ----------------------------------------------------
 # MAIN SCREEN
 # ----------------------------------------------------
-st.title("📷 Documentos complementarios para continuar la cotización")
-
-st.markdown(
-    """
-1) Escribe el **folio** de tu cotización (formato: `251215-0FF480`)  
-2) Sube fotos desde tu galería **y/o** toma fotos con la cámara (puedes tomar varias)  
-3) Presiona **Subir fotos** → se subirán al sistema  
-"""
-)
+render_header()
 
 folio_input = st.text_input("Folio de la cotización", placeholder="Ej. 251215-0FF480")
 folio = normalize_folio(folio_input)
@@ -337,23 +568,45 @@ st.success(f"Folio válido: **{folio}**")
 
 base_folder = st.secrets["azure_app"].get("onedrive_base_folder", "fotos_cotizaciones")
 
+# --------------------
+# GALLERY UPLOADS
+# --------------------
 st.subheader("📁 Subir desde galería / archivos")
 uploaded_files = st.file_uploader(
     "Puedes subir varias fotos",
     type=["jpg", "jpeg", "png", "heic", "heif"],
     accept_multiple_files=True,
+    key="gallery_uploader",
 )
 
-if uploaded_files:
+# Persist gallery files into session_state (this fixes "only camera uploads")
+if uploaded_files is not None:
+    new_list = []
+    for f in uploaded_files:
+        b = f.getvalue()
+        new_list.append(
+            {
+                "bytes": b,
+                "mime": f.type,
+                "suffix": _guess_suffix(f.type, f.name),
+                "name": f.name,
+            }
+        )
+    st.session_state.gallery_photos = new_list
+
+if st.session_state.gallery_photos:
     with st.expander("Ver vista previa de fotos seleccionadas"):
         cols = st.columns(3)
-        for idx, f in enumerate(uploaded_files):
-            cols[idx % 3].image(f.getvalue(), caption=f"Foto #{idx+1}", use_container_width=True)
+        for idx, item in enumerate(st.session_state.gallery_photos):
+            cols[idx % 3].image(item["bytes"], caption=f"Foto #{idx+1}", use_container_width=True)
 
 st.markdown("---")
 
+# --------------------
+# CAMERA (MULTI)
+# --------------------
 st.subheader("📸 Tomar fotos con la cámara (puedes tomar varias)")
-camera_photo = st.camera_input("Toma una foto y luego pulsa **Agregar foto tomada**")
+camera_photo = st.camera_input("Toma una foto y luego pulsa **Agregar foto tomada**", key="camera_input")
 
 c1, c2, c3 = st.columns([1, 1, 1])
 with c1:
@@ -378,7 +631,7 @@ if add_cam:
         st.success(f"✅ Foto agregada. Ya tienes {len(st.session_state.camera_photos)} foto(s) tomada(s).")
         st.rerun()
 
-if len(st.session_state.camera_photos) > 0:
+if st.session_state.camera_photos:
     with st.expander("Ver vista previa de fotos tomadas"):
         cols = st.columns(3)
         for i, p in enumerate(st.session_state.camera_photos, start=1):
@@ -386,40 +639,80 @@ if len(st.session_state.camera_photos) > 0:
 
 st.markdown("---")
 
+# --------------------
+# UPLOAD BUTTON
+# --------------------
 if st.button("💾 Subir fotos", type="primary"):
-    if (not uploaded_files) and (len(st.session_state.camera_photos) == 0):
+    if (not st.session_state.gallery_photos) and (not st.session_state.camera_photos):
         st.warning("No seleccionaste fotos de galería ni agregaste fotos tomadas.")
         st.stop()
 
     try:
         target_folder_id = ensure_path([base_folder, folio])
 
-        total = 0
-        previews: list[bytes] = []
+        existing_hash_prefixes = list_existing_hashes(target_folder_id)
+        seen_this_run: set[str] = set()
 
-        if uploaded_files:
-            for f in uploaded_files:
-                b = f.getvalue()
-                previews.append(b)
-                suffix = Path(f.name).suffix or ".jpg"
-                ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                filename = f"{folio}_upload_{ts}{suffix}"
-                upload_small_file_to_folder(target_folder_id, filename, b, f.type)
-                total += 1
+        # ✅ IMPORTANT CHANGE:
+        # Use previews from the photos the user selected/took (so preview always appears),
+        # not only the photos that were "new" after dedup.
+        previews: list[bytes] = (
+            [g["bytes"] for g in st.session_state.gallery_photos]
+            + [p["bytes"] for p in st.session_state.camera_photos]
+        )
 
-        for p in st.session_state.camera_photos:
-            previews.append(p["bytes"])
+        new_photo_bytes_for_pdf: list[bytes] = []
+        counter = {"n": 0}
+
+        def maybe_upload_image(b: bytes, mime: str | None, source: str, suffix: str) -> bool:
+            h12 = sha256_bytes(b)[:12]
+            if h12 in existing_hash_prefixes or h12 in seen_this_run:
+                return False
+
+            seen_this_run.add(h12)
+
             ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            filename = f"{folio}_camera_{ts}{p['suffix']}"
-            upload_small_file_to_folder(target_folder_id, filename, p["bytes"], p["mime"])
-            total += 1
+            filename = f"{folio}_{source}_{ts}__sha256_{h12}{suffix}"
+            upload_small_file_to_folder(target_folder_id, filename, b, mime)
 
+            existing_hash_prefixes.add(h12)
+            counter["n"] += 1
+            new_photo_bytes_for_pdf.append(b)
+            return True
+
+        # Upload gallery photos (from session_state)
+        for g in st.session_state.gallery_photos:
+            maybe_upload_image(g["bytes"], g["mime"], "upload", g["suffix"])
+
+        # Upload camera photos
+        for p in st.session_state.camera_photos:
+            maybe_upload_image(p["bytes"], p["mime"], "camera", p["suffix"])
+
+        # Upload PDF only if new photos were uploaded
+        if new_photo_bytes_for_pdf:
+            try:
+                pdf_bytes = build_pdf_from_images_high_quality(new_photo_bytes_for_pdf)
+                ts_pdf = datetime.now().strftime("%Y%m%d_%H%M%S")
+                pdf_name = f"{folio}_fotos_{ts_pdf}.pdf"
+                upload_small_file_to_folder(target_folder_id, pdf_name, pdf_bytes, "application/pdf")
+            except Exception as pdf_err:
+                st.warning(
+                    "⚠️ Las fotos se subieron correctamente, pero no se pudo generar el PDF. "
+                    "Si subiste HEIC/HEIF, instala `pillow-heif`."
+                )
+                st.caption(f"Detalle: {pdf_err}")
+        else:
+            st.info("No se subió nada nuevo (todas las fotos ya existían en el sistema).")
+
+        # Clear stacks after upload
         st.session_state.camera_photos = []
+        st.session_state.gallery_photos = []
 
+        # Success screen
         st.session_state.uploaded_ok = True
         st.session_state.uploaded_folio = folio
-        st.session_state.uploaded_total = total
-        st.session_state.uploaded_previews = previews
+        st.session_state.uploaded_total = counter["n"]  # new files uploaded (dedup)
+        st.session_state.uploaded_previews = previews    # ✅ show what user selected/took
         st.rerun()
 
     except requests.HTTPError as e:
