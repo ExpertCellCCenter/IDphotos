@@ -6,6 +6,7 @@ from pathlib import Path
 from datetime import datetime
 
 import streamlit as st
+import streamlit.components.v1 as components
 import requests
 from PIL import Image
 
@@ -266,6 +267,23 @@ div[data-testid="stExpander"] details > div{
 )
 
 # ----------------------------------------------------
+# SCROLL TO TOP ON SCREEN CHANGE
+# ----------------------------------------------------
+def scroll_to_top():
+    components.html(
+        """
+        <script>
+          try {
+            window.parent.scrollTo(0, 0);
+            window.parent.document.documentElement.scrollTop = 0;
+            window.parent.document.body.scrollTop = 0;
+          } catch (e) {}
+        </script>
+        """,
+        height=0,
+    )
+
+# ----------------------------------------------------
 # BRAND HEADER (logo + title)
 # ----------------------------------------------------
 def render_header():
@@ -448,6 +466,8 @@ if "uploaded_previews" not in st.session_state:
     st.session_state.uploaded_previews = []
 if "final_screen" not in st.session_state:
     st.session_state.final_screen = False
+if "last_screen" not in st.session_state:
+    st.session_state.last_screen = ""
 
 def _guess_suffix(mime: str | None, fallback_name: str | None = None) -> str:
     if fallback_name:
@@ -475,10 +495,21 @@ def reset_flow():
     st.session_state.uploaded_previews = []
     st.session_state.final_screen = False
 
+def _current_screen() -> str:
+    if st.session_state.final_screen:
+        return "final"
+    if st.session_state.uploaded_ok:
+        return "success"
+    return "main"
+
 # ----------------------------------------------------
 # FINAL SCREEN
 # ----------------------------------------------------
 if st.session_state.final_screen:
+    if st.session_state.last_screen != _current_screen():
+        scroll_to_top()
+        st.session_state.last_screen = _current_screen()
+
     render_header()
 
     st.markdown(
@@ -515,6 +546,10 @@ if st.session_state.final_screen:
 # SUCCESS SCREEN
 # ----------------------------------------------------
 if st.session_state.uploaded_ok:
+    if st.session_state.last_screen != _current_screen():
+        scroll_to_top()
+        st.session_state.last_screen = _current_screen()
+
     folio = st.session_state.uploaded_folio
     total = st.session_state.uploaded_total
     previews = st.session_state.uploaded_previews or []
@@ -573,6 +608,10 @@ if st.session_state.uploaded_ok:
 # ----------------------------------------------------
 # MAIN SCREEN
 # ----------------------------------------------------
+if st.session_state.last_screen != _current_screen():
+    scroll_to_top()
+    st.session_state.last_screen = _current_screen()
+
 render_header()
 
 folio_input = st.text_input("Folio de la cotización", placeholder="Ej. 251215-0FF480")
