@@ -81,7 +81,8 @@ input, textarea {
 }
 
 /* -----------------------------
-   CAMERA: fixed-size preview (no full-width in landscape)
+   CAMERA: FIXED SMALLER WIDGET (STOP FULL-WIDTH ON LANDSCAPE)
+   Key: limit the WHOLE stCameraInput width with max-width + center
 ------------------------------ */
 div[data-testid="stCameraInput"]{
   background: #F7FAFC !important;
@@ -89,36 +90,24 @@ div[data-testid="stCameraInput"]{
   border-radius: 14px !important;
   padding: 10px 12px !important;
 
-  /* Defaults (portrait) */
-  --cam-preview-h: 340px;
-  --cam-block-maxw: 520px;
-
+  /* ✅ THIS is what stops it from going huge in landscape */
+  max-width: 520px !important;
   width: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+
+  /* Default preview height (portrait) */
+  --cam-preview-h: 320px;
 }
 
-/* Hard cap the internal block (this is what prevents “full width” in landscape) */
+/* keep everything inside centered */
 div[data-testid="stCameraInput"] > div{
   width: 100% !important;
-  max-width: var(--cam-block-maxw) !important;
   margin-left: auto !important;
   margin-right: auto !important;
 }
 
-div[data-testid="stCameraInput"] *{ color: #0B0F14 !important; }
-div[data-testid="stCameraInput"] button{
-  background: #00A8E0 !important;
-  color: #FFFFFF !important;
-  border: 0 !important;
-  border-radius: 12px !important;
-  font-weight: 800 !important;
-}
-div[data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
-div[data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
-
-/* Force preview size */
+/* Video / preview area */
 div[data-testid="stCameraInput"] video,
 div[data-testid="stCameraInput"] img,
 div[data-testid="stCameraInput"] canvas{
@@ -133,14 +122,27 @@ div[data-testid="stCameraInput"] canvas{
   border-radius: 12px !important;
   display: block !important;
   margin: 0 auto !important;
-  background: #111827 !important;
+  background: #111827 !important;  /* black bars */
 }
 
-/* Landscape phones/tablets: keep it SMALL and stable */
-@media (orientation: landscape) and (max-width: 1024px){
+/* Buttons inside camera */
+div[data-testid="stCameraInput"] *{ color: #0B0F14 !important; }
+div[data-testid="stCameraInput"] button{
+  background: #00A8E0 !important;
+  color: #FFFFFF !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  font-weight: 800 !important;
+}
+div[data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
+div[data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
+
+/* ✅ Landscape phones/tablets: keep the widget SAME WIDTH and make preview shorter */
+@media (orientation: landscape) and (max-width: 1200px){
   div[data-testid="stCameraInput"]{
-    --cam-preview-h: 200px;
-    --cam-block-maxw: 640px;
+    max-width: 520px !important;     /* keep stable */
+    --cam-preview-h: 200px;          /* smaller so user can see buttons */
+    padding: 8px 10px !important;
   }
 }
 
@@ -432,14 +434,12 @@ def build_pdf_from_images_letter_high_quality(image_bytes_list: list[bytes]) -> 
 
         w_px, h_px = img.size
 
-        # Keep pixels (no resize); just scale on the page
         scale = min(page_w / w_px, page_h / h_px)
         draw_w = w_px * scale
         draw_h = h_px * scale
         x = (page_w - draw_w) / 2
         y = (page_h - draw_h) / 2
 
-        # Encode as high-quality JPEG to avoid extra loss / weird downscales
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=95, subsampling=0, optimize=False)
         buf.seek(0)
@@ -657,7 +657,6 @@ uploaded_files = st.file_uploader(
     key="gallery_uploader",
 )
 
-# Only overwrite gallery state when there are actual files
 if uploaded_files is not None and len(uploaded_files) > 0:
     new_list = []
     for f in uploaded_files:
@@ -722,7 +721,7 @@ if st.button("💾 Subir fotos", type="primary"):
     camera_items = st.session_state.camera_photos
 
     total_selected = len(gallery_items) + len(camera_items)
-    total_steps = max(1, total_selected) + 2  # folder prep + photos + PDF stage
+    total_steps = max(1, total_selected) + 2
     done_steps = 0
 
     legend = st.empty()
@@ -777,7 +776,6 @@ if st.button("💾 Subir fotos", type="primary"):
             done_steps += 1
             _set_progress()
 
-        # PDF stage
         done_steps += 1
         _set_progress()
 
@@ -800,11 +798,9 @@ if st.button("💾 Subir fotos", type="primary"):
         pct_line.markdown("100%")
         legend.markdown("**Finalizado**")
 
-        # Clear stacks after upload
         st.session_state.camera_photos = []
         st.session_state.gallery_photos = []
 
-        # Success screen
         st.session_state.uploaded_ok = True
         st.session_state.uploaded_folio = folio
         st.session_state.uploaded_total = counter["n"]
