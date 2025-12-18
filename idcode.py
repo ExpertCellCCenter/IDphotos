@@ -266,18 +266,42 @@ div[data-testid="stExpander"] details > div{
     unsafe_allow_html=True,
 )
 
+# Anchor always present (helps scrollIntoView on mobile)
+st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
+
 # ----------------------------------------------------
-# SCROLL TO TOP ON SCREEN CHANGE
+# SCROLL TO TOP ON SCREEN CHANGE (more robust for mobile)
 # ----------------------------------------------------
 def scroll_to_top():
     components.html(
         """
         <script>
-          try {
-            window.parent.scrollTo(0, 0);
-            window.parent.document.documentElement.scrollTop = 0;
-            window.parent.document.body.scrollTop = 0;
-          } catch (e) {}
+          (function () {
+            function doScroll(doc) {
+              try { doc.getElementById("top-anchor")?.scrollIntoView({block:"start"}); } catch(e) {}
+              try { doc.documentElement.scrollTop = 0; } catch(e) {}
+              try { doc.body.scrollTop = 0; } catch(e) {}
+              try { doc.querySelector('[data-testid="stAppViewContainer"]')?.scrollTo(0,0); } catch(e) {}
+              try { doc.querySelector('[data-testid="stAppViewContainer"]')?.scrollTop = 0; } catch(e) {}
+              try { doc.querySelector('section.main')?.scrollTo(0,0); } catch(e) {}
+              try { doc.querySelector('section.main')?.scrollTop = 0; } catch(e) {}
+              try { doc.querySelector('div[data-testid="stMainBlockContainer"]')?.scrollTo(0,0); } catch(e) {}
+              try { doc.querySelector('div[data-testid="stMainBlockContainer"]')?.scrollTop = 0; } catch(e) {}
+            }
+
+            function run() {
+              try { window.scrollTo(0,0); } catch(e) {}
+              try { doScroll(document); } catch(e) {}
+              try { doScroll(window.parent.document); } catch(e) {}
+              try { window.parent.scrollTo(0,0); } catch(e) {}
+            }
+
+            // run a few times (mobile sometimes needs a delay after rerender)
+            run();
+            setTimeout(run, 50);
+            setTimeout(run, 250);
+            setTimeout(run, 800);
+          })();
         </script>
         """,
         height=0,
@@ -512,6 +536,10 @@ if st.session_state.final_screen:
 
     render_header()
 
+    # extra scroll call AFTER header render (helps on mobile)
+    if st.session_state.last_screen == "final":
+        scroll_to_top()
+
     st.markdown(
         """
 <div class="success-wrap">
@@ -556,6 +584,10 @@ if st.session_state.uploaded_ok:
 
     render_header()
 
+    # extra scroll call AFTER header render (helps on mobile)
+    if st.session_state.last_screen == "success":
+        scroll_to_top()
+
     st.markdown(
         f"""
 <div class="success-wrap">
@@ -585,12 +617,14 @@ if st.session_state.uploaded_ok:
         unsafe_allow_html=True,
     )
 
-    if previews:
-        cols = st.columns(4)
-        for i, b in enumerate(previews, start=1):
-            cols[(i - 1) % 4].image(b, caption=f"Foto #{i}", use_container_width=True)
-    else:
-        st.info("No hay vista previa disponible.")
+    # ✅ Expanded preview section on the second screen
+    with st.expander("📷 Ver fotos subidas", expanded=True):
+        if previews:
+            cols = st.columns(4)
+            for i, b in enumerate(previews, start=1):
+                cols[(i - 1) % 4].image(b, caption=f"Foto #{i}", use_container_width=True)
+        else:
+            st.info("No hay vista previa disponible.")
 
     st.write("")
     colA, colB = st.columns([1, 1])
@@ -613,6 +647,10 @@ if st.session_state.last_screen != _current_screen():
     st.session_state.last_screen = _current_screen()
 
 render_header()
+
+# extra scroll call AFTER header render (helps on mobile)
+if st.session_state.last_screen == "main":
+    scroll_to_top()
 
 folio_input = st.text_input("Folio de la cotización", placeholder="Ej. 251215-0FF480")
 folio = normalize_folio(folio_input)
