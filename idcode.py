@@ -10,7 +10,9 @@ import streamlit.components.v1 as components
 import requests
 from PIL import Image, ImageOps
 
-# High-quality PDF
+import numpy as np  # ✅ for mobile orientation heuristic
+
+# PDF
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from reportlab.lib.pagesizes import letter, landscape, portrait
@@ -103,11 +105,6 @@ div[data-testid="stCameraInput"] img{
   height: auto !important;
   object-fit: contain !important;
 }
-@media (orientation: landscape){
-  div[data-testid="stCameraInput"]{
-    max-width: 980px !important;
-  }
-}
 
 /* Buttons */
 .stButton > button {
@@ -127,7 +124,7 @@ div[data-testid="stCameraInput"] img{
   color: #0B0F14 !important;
 }
 
-/* EXPANDERS: blue header */
+/* EXPANDERS: blue header like buttons */
 div[data-testid="stExpander"] details{
   background: #FFFFFF !important;
   border: 1px solid rgba(0,0,0,0.08) !important;
@@ -289,6 +286,26 @@ def is_valid_folio(folio: str) -> bool:
     return bool(FOLIO_PATTERN.match(folio))
 
 # ----------------------------------------------------
+# DEVICE DETECTION (best-effort)
+# ----------------------------------------------------
+def _user_agent_lower() -> str:
+    try:
+        # Newer Streamlit
+        ua = st.context.headers.get("User-Agent", "")
+        return (ua or "").lower()
+    except Exception:
+        return ""
+
+def is_mobile_device() -> bool:
+    ua = _user_agent_lower()
+    if not ua:
+        return False
+    keys = ["iphone", "ipad", "ipod", "android", "mobile", "windows phone"]
+    return any(k in ua for k in keys)
+
+IS_MOBILE = is_mobile_device()
+
+# ----------------------------------------------------
 # HELPERS
 # ----------------------------------------------------
 def _guess_suffix(mime: str | None, fallback_name: str | None = None) -> str:
@@ -313,6 +330,7 @@ def sha256_bytes(b: bytes) -> str:
 
 def _open_img_safe(b: bytes) -> Image.Image:
     img = Image.open(io.BytesIO(b))
+    # ✅ EXIF transpose (when EXIF exists)
     img = ImageOps.exif_transpose(img)
     return img
 
@@ -321,29 +339,74 @@ def _to_png_bytes(img: Image.Image) -> bytes:
         img = img.convert("RGB")
     elif img.mode != "RGB":
         img = img.convert("RGB")
-
     buf = io.BytesIO()
-    img.save(buf, format="PNG", optimize=False)
+    img.save(buf, format="PNG", optimize=False)  # lossless
     buf.seek(0)
     return buf.read()
 
+def _projection_score(img: Image.Image) -> float:
+    """
+    Heuristic for documents: upright orientation tends to have more variation across rows (text lines)
+    than across columns. We compare row-variance vs col-variance on a downscaled grayscale copy.
+    """
+    g = img.convert("L")
+    w, h = g.size
+    max_side = 480
+    if max(w, h) > max_side:
+        scale = max_side / max(w, h)
+        g = g.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.BILINEAR)
+
+    arr = np.asarray(g, dtype=np.float32) / 255.0
+    row = arr.mean(axis=1)
+    col = arr.mean(axis=0)
+    return float(row.var() - col.var())
+
+def normalize_camera_orientation_mobile(img: Image.Image) -> Image.Image:
+    """
+    ✅ Mobile fix: choose 0° vs 90° (CW) based on document-like projection score.
+    Only used for camera photos on mobile.
+    """
+    try:
+        score0 = _projection_score(img)
+        img90 = img.rotate(270, expand=True)  # 90° CW
+        score90 = _projection_score(img90)
+
+        # Rotate only if it improves the score (more "horizontal text lines" feel)
+        if score90 > score0:
+            return img90
+        return img
+    except Exception:
+        return img
+
 def prepare_for_storage(b: bytes, mime: str | None, source: str) -> tuple[bytes, str | None, str]:
     """
-    - Corrige EXIF orientation.
-    - Para 'camera': si queda en portrait (h>w), fuerza landscape (rotación 90° CW).
-    - Guarda en PNG lossless.
+    - Opens image
+    - EXIF transpose
+    - ✅ If source is camera AND device is mobile -> apply robust 0/90 auto-rotation
+    - Saves as lossless PNG (keeps quality, removes EXIF confusion)
     """
     try:
         img = _open_img_safe(b)
 
-        # camera photos on mobile that arrive “standing”
-        if source == "camera" and img.height > img.width:
-            img = img.rotate(270, expand=True)  # 90° clockwise
+        if source == "camera" and IS_MOBILE:
+            img = normalize_camera_orientation_mobile(img)
 
         png_bytes = _to_png_bytes(img)
         return png_bytes, "image/png", ".png"
     except Exception:
         return b, mime, _guess_suffix(mime)
+
+def normalize_for_preview(b: bytes, source: str) -> Image.Image | None:
+    """
+    For UI previews: show corrected orientation (same logic), without changing storage bytes here.
+    """
+    try:
+        img = _open_img_safe(b)
+        if source == "camera" and IS_MOBILE:
+            img = normalize_camera_orientation_mobile(img)
+        return img
+    except Exception:
+        return None
 
 # ----------------------------------------------------
 # ONEDRIVE / GRAPH HELPERS
@@ -426,7 +489,7 @@ def list_existing_hashes(folder_item_id: str, max_pages: int = 10) -> set[str]:
     return hashes
 
 # ----------------------------------------------------
-# PDF BUILDER (LETTER pages for better standard printing)
+# PDF BUILDER (LETTER + no-upscale for quality)
 # ----------------------------------------------------
 def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
     if not image_bytes_list:
@@ -447,7 +510,7 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
 
         w_px, h_px = img.size
 
-        # ✅ LETTER portrait/landscape depending on photo
+        # ✅ Always LETTER (portrait/landscape depending on image)
         if w_px >= h_px:
             page_w, page_h = landscape(letter)
         else:
@@ -460,7 +523,9 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
         max_w = page_w - 2 * margin
         max_h = page_h - 2 * margin
 
-        scale = min(max_w / w_px, max_h / h_px)
+        # ✅ IMPORTANT: never upscale -> avoids "horrible" pixelated look
+        scale = min(max_w / w_px, max_h / h_px, 1.0)
+
         draw_w = w_px * scale
         draw_h = h_px * scale
 
@@ -663,6 +728,7 @@ uploaded_files = st.file_uploader(
     key="gallery_uploader",
 )
 
+# Only overwrite if there are actual files
 if uploaded_files is not None and len(uploaded_files) > 0:
     new_list = []
     for f in uploaded_files:
@@ -674,11 +740,7 @@ if st.session_state.gallery_photos:
     with st.expander("Ver vista previa de fotos seleccionadas"):
         cols = st.columns(3)
         for idx, item in enumerate(st.session_state.gallery_photos):
-            try:
-                img_prev = _open_img_safe(item["bytes"])
-                cols[idx % 3].image(img_prev, caption=f"Foto #{idx+1}", use_container_width=True)
-            except Exception:
-                cols[idx % 3].image(item["bytes"], caption=f"Foto #{idx+1}", use_container_width=True)
+            cols[idx % 3].image(item["bytes"], caption=f"Foto #{idx+1}", use_container_width=True)
 
 st.markdown("---")
 
@@ -715,18 +777,16 @@ if st.session_state.camera_photos:
     with st.expander("Ver vista previa de fotos tomadas"):
         cols = st.columns(3)
         for i, p in enumerate(st.session_state.camera_photos, start=1):
-            try:
-                img_prev = _open_img_safe(p["bytes"])
-                if img_prev.height > img_prev.width:
-                    img_prev = img_prev.rotate(270, expand=True)
+            img_prev = normalize_for_preview(p["bytes"], source="camera")
+            if img_prev is not None:
                 cols[(i - 1) % 3].image(img_prev, caption=f"Foto tomada #{i}", use_container_width=True)
-            except Exception:
+            else:
                 cols[(i - 1) % 3].image(p["bytes"], caption=f"Foto tomada #{i}", use_container_width=True)
 
 st.markdown("---")
 
 # --------------------
-# UPLOAD BUTTON (ONLY bar + % + legend: Subiendo/Finalizado)
+# UPLOAD BUTTON (ONLY bar + % + legend)
 # --------------------
 if st.button("💾 Subir fotos", type="primary"):
     if (not st.session_state.gallery_photos) and (not st.session_state.camera_photos):
@@ -761,20 +821,8 @@ if st.button("💾 Subir fotos", type="primary"):
         existing_hash_prefixes = list_existing_hashes(target_folder_id)
         seen_this_run: set[str] = set()
 
-        previews_norm: list[bytes] = []
-
-        def _norm_and_collect(item: dict, source: str):
-            b0 = item["bytes"]
-            m0 = item.get("mime")
-            b1, m1, s1 = prepare_for_storage(b0, m0, source)
-            previews_norm.append(b1)
-            return b1, m1, s1
-
-        for g in gallery_items:
-            _norm_and_collect(g, "upload")
-        for p in camera_items:
-            _norm_and_collect(p, "camera")
-
+        # PDF uses normalized bytes (correct orientation + lossless)
+        pdf_images_bytes: list[bytes] = []
         counter = {"n": 0}
         flags = {"new_anything": False}
 
@@ -794,24 +842,29 @@ if st.button("💾 Subir fotos", type="primary"):
             flags["new_anything"] = True
             return True
 
+        # Upload gallery
         for g in gallery_items:
-            b_store, m_store, s_store = prepare_for_storage(g["bytes"], g.get("mime"), "upload")
-            maybe_upload_image(g["bytes"], b_store, m_store, "upload", s_store)
+            store_b, store_m, store_s = prepare_for_storage(g["bytes"], g.get("mime"), "upload")
+            pdf_images_bytes.append(store_b)
+            maybe_upload_image(g["bytes"], store_b, store_m, "upload", store_s)
             done_steps += 1
             _set_progress()
 
+        # Upload camera (mobile fix applied here)
         for p in camera_items:
-            b_store, m_store, s_store = prepare_for_storage(p["bytes"], p.get("mime"), "camera")
-            maybe_upload_image(p["bytes"], b_store, m_store, "camera", s_store)
+            store_b, store_m, store_s = prepare_for_storage(p["bytes"], p.get("mime"), "camera")
+            pdf_images_bytes.append(store_b)
+            maybe_upload_image(p["bytes"], store_b, store_m, "camera", store_s)
             done_steps += 1
             _set_progress()
 
+        # PDF step
         done_steps += 1
         _set_progress()
 
         if flags["new_anything"]:
             try:
-                pdf_bytes = build_pdf_from_images_high_quality(previews_norm)
+                pdf_bytes = build_pdf_from_images_high_quality(pdf_images_bytes)
                 ts_pdf = datetime.now().strftime("%Y%m%d_%H%M%S")
                 pdf_name = f"{folio}_fotos_{ts_pdf}.pdf"
                 upload_small_file_to_folder(target_folder_id, pdf_name, pdf_bytes, "application/pdf")
@@ -828,13 +881,15 @@ if st.button("💾 Subir fotos", type="primary"):
         pct_line.markdown("100%")
         legend.markdown("**Finalizado**")
 
+        # Clear stacks
         st.session_state.camera_photos = []
         st.session_state.gallery_photos = []
 
+        # Success screen (show normalized previews)
         st.session_state.uploaded_ok = True
         st.session_state.uploaded_folio = folio
         st.session_state.uploaded_total = counter["n"]
-        st.session_state.uploaded_previews = previews_norm
+        st.session_state.uploaded_previews = pdf_images_bytes
         st.rerun()
 
     except requests.HTTPError as e:
