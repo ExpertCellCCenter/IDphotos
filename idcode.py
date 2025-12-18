@@ -12,8 +12,8 @@ from PIL import Image, ImageOps
 
 # PDF
 from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.utils import ImageReader
-from reportlab.lib.pagesizes import letter, landscape as rl_landscape
 
 # Optional HEIC/HEIF support
 try:
@@ -29,228 +29,182 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# CAMERA PREVIEW FIXED SIZES (STABLE)
-# ----------------------------------------------------
-CAM_PREVIEW_PORTRAIT_PX = 340   # altura fija en portrait
-CAM_PREVIEW_LANDSCAPE_PX = 220  # altura fija en landscape (más práctico)
-
-# ----------------------------------------------------
 # STYLE
 # ----------------------------------------------------
 st.markdown(
-    f"""
+    """
 <style>
 /* --- Hide Streamlit chrome (top bar / menu / footer) --- */
-header[data-testid="stHeader"] {{display:none !important;}}
-#MainMenu {{visibility: hidden !important;}}
-footer {{visibility: hidden !important;}}
-div[data-testid="stAppViewContainer"] {{padding-top: 0rem !important;}}
+header[data-testid="stHeader"] {display:none !important;}
+#MainMenu {visibility: hidden !important;}
+footer {visibility: hidden !important;}
+div[data-testid="stAppViewContainer"] {padding-top: 0rem !important;}
 
 /* Force a light-looking app */
-.stApp {{
-  background: #ffffff !important;
-  color: #0B0F14 !important;
-}}
-[data-testid="stAppViewContainer"]{{
-  background: #ffffff !important;
-}}
-section[data-testid="stSidebar"]{{
-  background: #F5F7FA !important;
-}}
+.stApp { background: #ffffff !important; color: #0B0F14 !important; }
+[data-testid="stAppViewContainer"]{ background: #ffffff !important; }
+section[data-testid="stSidebar"]{ background: #F5F7FA !important; }
 
 /* Text */
-h1, h2, h3, h4, h5, h6, p, li, label, span, div {{
-  color: #0B0F14 !important;
-}}
+h1, h2, h3, h4, h5, h6, p, li, label, span, div { color: #0B0F14 !important; }
 
 /* Inputs */
-input, textarea {{
+input, textarea {
   background: #FFFFFF !important;
   color: #0B0F14 !important;
   border: 1px solid rgba(0,0,0,0.15) !important;
   border-radius: 10px !important;
-}}
+}
 
 /* -----------------------------
    FILE UPLOADER: theme-safe
 ------------------------------ */
-[data-testid="stFileUploaderDropzone"]{{
+[data-testid="stFileUploaderDropzone"]{
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.25) !important;
   border-radius: 14px !important;
-}}
-[data-testid="stFileUploaderDropzone"] *{{
-  color: #0B0F14 !important;
-}}
-[data-testid="stFileUploaderDropzone"] button{{
+}
+[data-testid="stFileUploaderDropzone"] *{ color: #0B0F14 !important; }
+[data-testid="stFileUploaderDropzone"] button{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 12px !important;
   font-weight: 800 !important;
-}}
-[data-testid="stFileUploaderDropzone"] button *{{
-  color: #FFFFFF !important;
-}}
-[data-testid="stFileUploaderDropzone"] button:hover{{
-  filter: brightness(0.95) !important;
-}}
-[data-testid="stFileUploaderDropzone"] small{{
-  color: rgba(11,15,20,0.70) !important;
-}}
-[data-testid="stFileUploaderDropzone"][data-active="true"]{{
+}
+[data-testid="stFileUploaderDropzone"] button *{ color: #FFFFFF !important; }
+[data-testid="stFileUploaderDropzone"] button:hover{ filter: brightness(0.95) !important; }
+[data-testid="stFileUploaderDropzone"] small{ color: rgba(11,15,20,0.70) !important; }
+[data-testid="stFileUploaderDropzone"][data-active="true"]{
   background: rgba(0,168,224,0.08) !important;
   border-color: rgba(0,168,224,0.45) !important;
-}}
+}
 
 /* -----------------------------
-   CAMERA: theme-safe Take Photo
+   CAMERA: fixed-size preview (no full-width in landscape)
 ------------------------------ */
-[data-testid="stCameraInput"]{{
+div[data-testid="stCameraInput"]{
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.20) !important;
   border-radius: 14px !important;
   padding: 10px 12px !important;
 
-  /* ✅ ESTABLE: altura fija en px (portrait por default) */
-  --cam-preview-h: {CAM_PREVIEW_PORTRAIT_PX}px;
-}}
+  /* Defaults (portrait) */
+  --cam-preview-h: 340px;
+  --cam-block-maxw: 520px;
 
-[data-testid="stCameraInput"] *{{
-  color: #0B0F14 !important;
-}}
-[data-testid="stCameraInput"] button{{
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+}
+
+/* Hard cap the internal block (this is what prevents “full width” in landscape) */
+div[data-testid="stCameraInput"] > div{
+  width: 100% !important;
+  max-width: var(--cam-block-maxw) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+div[data-testid="stCameraInput"] *{ color: #0B0F14 !important; }
+div[data-testid="stCameraInput"] button{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 12px !important;
   font-weight: 800 !important;
-}}
-[data-testid="stCameraInput"] button *{{
-  color: #FFFFFF !important;
-}}
-[data-testid="stCameraInput"] button:hover{{
-  filter: brightness(0.95) !important;
-}}
+}
+div[data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
+div[data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
 
-/* ✅ Forzar tamaño del preview (video/img/canvas) a la altura fija */
-[data-testid="stCameraInput"] video,
-[data-testid="stCameraInput"] img,
-[data-testid="stCameraInput"] canvas {{
+/* Force preview size */
+div[data-testid="stCameraInput"] video,
+div[data-testid="stCameraInput"] img,
+div[data-testid="stCameraInput"] canvas{
   width: 100% !important;
   height: var(--cam-preview-h) !important;
   max-height: var(--cam-preview-h) !important;
   min-height: var(--cam-preview-h) !important;
+
   object-fit: contain !important;
   object-position: center center !important;
+
   border-radius: 12px !important;
   display: block !important;
   margin: 0 auto !important;
   background: #111827 !important;
-}}
+}
 
-/* ✅ Landscape: SIEMPRE usar altura fija más pequeña (no adaptativa) */
-@media (orientation: landscape) {{
-  [data-testid="stCameraInput"]{{
-    --cam-preview-h: {CAM_PREVIEW_LANDSCAPE_PX}px;
-  }}
-}}
+/* Landscape phones/tablets: keep it SMALL and stable */
+@media (orientation: landscape) and (max-width: 1024px){
+  div[data-testid="stCameraInput"]{
+    --cam-preview-h: 200px;
+    --cam-block-maxw: 640px;
+  }
+}
 
 /* Buttons */
-.stButton > button {{
+.stButton > button {
   background: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 12px !important;
   padding: 0.55rem 1rem !important;
   font-weight: 800 !important;
-}}
-.stButton > button:hover{{
-  filter: brightness(0.95);
-}}
+}
+.stButton > button:hover{ filter: brightness(0.95); }
 
 /* Alerts */
-[data-testid="stAlert"]{{
+[data-testid="stAlert"]{
   background: #F5F7FA !important;
   border: 1px solid rgba(0,0,0,0.08) !important;
   color: #0B0F14 !important;
-}}
+}
 
 /* -----------------------------
    EXPANDERS: blue header like buttons
 ------------------------------ */
-div[data-testid="stExpander"] details{{
+div[data-testid="stExpander"] details{
   background: #FFFFFF !important;
   border: 1px solid rgba(0,0,0,0.08) !important;
   border-radius: 14px !important;
   padding: 0 !important;
   overflow: hidden !important;
-}}
-div[data-testid="stExpander"] details > summary{{
+}
+div[data-testid="stExpander"] details > summary{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
   padding: 10px 14px !important;
   font-weight: 800 !important;
   border-radius: 14px !important;
   margin: 0 !important;
-}}
-div[data-testid="stExpander"] details > summary *{{
-  color: #FFFFFF !important;
-}}
-div[data-testid="stExpander"] details[open] > summary{{
+}
+div[data-testid="stExpander"] details > summary *{ color: #FFFFFF !important; }
+div[data-testid="stExpander"] details[open] > summary{
   border-bottom-left-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
   border-bottom: 1px solid rgba(0,0,0,0.08) !important;
-}}
-div[data-testid="stExpander"] details > div{{
-  padding: 10px 12px !important;
-}}
+}
+div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
 
 /* Header */
-.brand-header{{
-  display:flex;
-  align-items:center;
-  gap:14px;
-  padding: 6px 0 12px 0;
-}}
-.brand-title{{
-  font-size: 1.6rem;
-  font-weight: 900;
-  line-height: 1.15;
-  margin: 0;
-}}
-.brand-subtitle{{
-  margin: 4px 0 0 0;
-  opacity: 0.85;
-  font-size: 0.95rem;
-}}
-.hr-soft{{
-  border: none;
-  height: 1px;
-  background: rgba(0,0,0,0.08);
-  margin: 10px 0 16px 0;
-}}
+.brand-header{ display:flex; align-items:center; gap:14px; padding: 6px 0 12px 0; }
+.brand-title{ font-size: 1.6rem; font-weight: 900; line-height: 1.15; margin: 0; }
+.brand-subtitle{ margin: 4px 0 0 0; opacity: 0.85; font-size: 0.95rem; }
+.hr-soft{ border: none; height: 1px; background: rgba(0,0,0,0.08); margin: 10px 0 16px 0; }
 
 /* Cards */
-.success-wrap{{
+.success-wrap{
   border: 1px solid rgba(0,0,0,0.08);
   background: #FFFFFF;
   border-radius: 18px;
   padding: 22px 20px;
   box-shadow: 0 10px 26px rgba(0,0,0,0.08);
-}}
-.success-title{{
-  font-size: 1.6rem;
-  font-weight: 800;
-  line-height: 1.2;
-  margin: 0 0 10px 0;
-}}
-.success-sub{{
-  font-size: 1rem;
-  opacity: 0.92;
-  margin: 0 0 14px 0;
-}}
-.success-chip{{
+}
+.success-title{ font-size: 1.6rem; font-weight: 800; line-height: 1.2; margin: 0 0 10px 0; }
+.success-sub{ font-size: 1rem; opacity: 0.92; margin: 0 0 14px 0; }
+.success-chip{
   display: inline-block;
   padding: 7px 12px;
   border-radius: 999px;
@@ -258,53 +212,37 @@ div[data-testid="stExpander"] details > div{{
   border: 1px solid rgba(0,168,224,0.25);
   font-weight: 700;
   margin-right: 10px;
-}}
-.success-meta{{
+}
+.success-meta{
   margin-top: 16px;
   border-top: 1px solid rgba(0,0,0,0.08);
   padding-top: 14px;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-}}
-.success-box{{
+}
+.success-box{
   flex: 1;
   min-width: 180px;
   border: 1px solid rgba(0,0,0,0.08);
   background: #F7FAFC;
   border-radius: 14px;
   padding: 12px 14px;
-}}
-.success-k{{
-  font-size: 0.85rem;
-  opacity: 0.85;
-  margin: 0;
-}}
-.success-v{{
-  font-size: 1.15rem;
-  font-weight: 800;
-  margin: 2px 0 0 0;
-}}
-.preview-wrap{{
-  margin-top: 14px;
-  border-top: 1px solid rgba(0,0,0,0.08);
-  padding-top: 14px;
-}}
-.preview-title{{
-  font-weight: 800;
-  margin-bottom: 10px;
-  opacity: 0.95;
-}}
+}
+.success-k{ font-size: 0.85rem; opacity: 0.85; margin: 0; }
+.success-v{ font-size: 1.15rem; font-weight: 800; margin: 2px 0 0 0; }
+.preview-wrap{ margin-top: 14px; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 14px; }
+.preview-title{ font-weight: 800; margin-bottom: 10px; opacity: 0.95; }
 </style>
 """,
     unsafe_allow_html=True,
 )
 
-# Anchor always present
+# Anchor always present (helps scrollIntoView on mobile)
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# SCROLL TO TOP
+# SCROLL TO TOP ON SCREEN CHANGE
 # ----------------------------------------------------
 def scroll_to_top():
     components.html(
@@ -339,7 +277,7 @@ def scroll_to_top():
     )
 
 # ----------------------------------------------------
-# HEADER
+# BRAND HEADER
 # ----------------------------------------------------
 def render_header():
     logo_path = Path(__file__).parent / "att_logo.png"
@@ -373,7 +311,7 @@ def render_header():
     )
 
 # ----------------------------------------------------
-# FOLIO
+# FOLIO FORMAT
 # ----------------------------------------------------
 FOLIO_PATTERN = re.compile(r"^\d{6}-[A-Z0-9]{6}$")
 
@@ -386,7 +324,7 @@ def is_valid_folio(folio: str) -> bool:
     return bool(FOLIO_PATTERN.match(folio))
 
 # ----------------------------------------------------
-# GRAPH HELPERS
+# ONEDRIVE / GRAPH HELPERS
 # ----------------------------------------------------
 def graph_token() -> str:
     tenant_id = st.secrets["azure_app"]["tenant_id"]
@@ -448,7 +386,7 @@ def upload_small_file_to_folder(folder_item_id: str, filename: str, file_bytes: 
     r.raise_for_status()
 
 # ----------------------------------------------------
-# DEDUP
+# DUPLICATE AVOIDANCE
 # ----------------------------------------------------
 def sha256_bytes(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
@@ -462,7 +400,7 @@ def list_existing_hashes(folder_item_id: str, max_pages: int = 10) -> set[str]:
         data = r.json()
         for it in data.get("value", []):
             name = it.get("name", "")
-            m = re.search(r"__sha256_([0-9a-f]{{12}})", name)
+            m = re.search(r"__sha256_([0-9a-f]{12})", name)
             if m:
                 hashes.add(m.group(1))
         nxt = data.get("@odata.nextLink")
@@ -472,15 +410,16 @@ def list_existing_hashes(folder_item_id: str, max_pages: int = 10) -> set[str]:
     return hashes
 
 # ----------------------------------------------------
-# PDF BUILDER (Letter + auto portrait/landscape + high quality)
+# PDF BUILDER (LETTER, high quality)
 # ----------------------------------------------------
-def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
+def build_pdf_from_images_letter_high_quality(image_bytes_list: list[bytes]) -> bytes:
     if not image_bytes_list:
         raise ValueError("No hay imágenes para generar el PDF.")
 
     out = io.BytesIO()
-    c = canvas.Canvas(out, pageCompression=0)
-    margin = 18  # points
+    c = canvas.Canvas(out, pagesize=letter, pageCompression=0)
+
+    page_w, page_h = letter
 
     for b in image_bytes_list:
         img = Image.open(io.BytesIO(b))
@@ -492,25 +431,21 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
             img = img.convert("RGB")
 
         w_px, h_px = img.size
-        is_landscape = w_px >= h_px
 
-        page_w, page_h = (rl_landscape(letter) if is_landscape else letter)
-        c.setPageSize((page_w, page_h))
-
-        png_buf = io.BytesIO()
-        img.save(png_buf, format="PNG", optimize=False)
-        png_buf.seek(0)
-
-        avail_w = page_w - 2 * margin
-        avail_h = page_h - 2 * margin
-        scale = min(avail_w / w_px, avail_h / h_px)
-
+        # Keep pixels (no resize); just scale on the page
+        scale = min(page_w / w_px, page_h / h_px)
         draw_w = w_px * scale
         draw_h = h_px * scale
         x = (page_w - draw_w) / 2
         y = (page_h - draw_h) / 2
 
-        c.drawImage(ImageReader(png_buf), x, y, width=draw_w, height=draw_h, mask="auto")
+        # Encode as high-quality JPEG to avoid extra loss / weird downscales
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=95, subsampling=0, optimize=False)
+        buf.seek(0)
+
+        c.setPageSize(letter)
+        c.drawImage(ImageReader(buf), x, y, width=draw_w, height=draw_h, mask="auto")
         c.showPage()
 
     c.save()
@@ -534,12 +469,15 @@ if "uploaded_previews" not in st.session_state:
     st.session_state.uploaded_previews = []
 if "final_screen" not in st.session_state:
     st.session_state.final_screen = False
+if "last_screen" not in st.session_state:
+    st.session_state.last_screen = ""
 
 def _guess_suffix(mime: str | None, fallback_name: str | None = None) -> str:
     if fallback_name:
         s = Path(fallback_name).suffix
         if s:
             return s.lower()
+
     if not mime:
         return ".jpg"
     m = mime.lower()
@@ -560,10 +498,20 @@ def reset_flow():
     st.session_state.uploaded_previews = []
     st.session_state.final_screen = False
 
+def _current_screen() -> str:
+    if st.session_state.final_screen:
+        return "final"
+    if st.session_state.uploaded_ok:
+        return "success"
+    return "main"
+
 # ----------------------------------------------------
 # FINAL SCREEN
 # ----------------------------------------------------
 if st.session_state.final_screen:
+    scroll_to_top()
+    st.session_state.last_screen = _current_screen()
+
     render_header()
     scroll_to_top()
 
@@ -576,6 +524,16 @@ if st.session_state.final_screen:
     Ya puedes cerrar esta página con seguridad.
   </div>
   <span class="success-chip">Listo</span>
+  <div class="success-meta">
+    <div class="success-box">
+      <p class="success-k">Siguiente paso</p>
+      <p class="success-v">Continuar con la cotización (contacta a tu agente)</p>
+    </div>
+    <div class="success-box">
+      <p class="success-k">Acción</p>
+      <p class="success-v">Puedes cerrar esta pantalla</p>
+    </div>
+  </div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -591,7 +549,11 @@ if st.session_state.final_screen:
 # SUCCESS SCREEN
 # ----------------------------------------------------
 if st.session_state.uploaded_ok:
-    folio_ok = st.session_state.uploaded_folio
+    if st.session_state.last_screen != _current_screen():
+        scroll_to_top()
+        st.session_state.last_screen = _current_screen()
+
+    folio = st.session_state.uploaded_folio
     total = st.session_state.uploaded_total
     previews = st.session_state.uploaded_previews or []
 
@@ -603,19 +565,22 @@ if st.session_state.uploaded_ok:
 <div class="success-wrap">
   <div class="success-title">✅ Carga completada</div>
   <div class="success-sub">
-    Las fotos correspondientes a la cotización <b>{folio_ok}</b> se subieron al sistema de manera satisfactoria.
+    Las fotos correspondientes a la cotización <b>{folio}</b> se subieron al sistema de manera satisfactoria.
   </div>
+
   <span class="success-chip">Subida exitosa</span>
+
   <div class="success-meta">
     <div class="success-box">
       <p class="success-k">Folio</p>
-      <p class="success-v">{folio_ok}</p>
+      <p class="success-v">{folio}</p>
     </div>
     <div class="success-box">
       <p class="success-k">Total de fotos subidas</p>
       <p class="success-v">{total}</p>
     </div>
   </div>
+
   <div class="preview-wrap">
     <div class="preview-title">Vista previa de fotos subidas</div>
   </div>
@@ -648,6 +613,10 @@ if st.session_state.uploaded_ok:
 # ----------------------------------------------------
 # MAIN SCREEN
 # ----------------------------------------------------
+if st.session_state.last_screen != _current_screen():
+    scroll_to_top()
+    st.session_state.last_screen = _current_screen()
+
 render_header()
 scroll_to_top()
 
@@ -688,6 +657,7 @@ uploaded_files = st.file_uploader(
     key="gallery_uploader",
 )
 
+# Only overwrite gallery state when there are actual files
 if uploaded_files is not None and len(uploaded_files) > 0:
     new_list = []
     for f in uploaded_files:
@@ -752,7 +722,7 @@ if st.button("💾 Subir fotos", type="primary"):
     camera_items = st.session_state.camera_photos
 
     total_selected = len(gallery_items) + len(camera_items)
-    total_steps = max(1, total_selected) + 2
+    total_steps = max(1, total_selected) + 2  # folder prep + photos + PDF stage
     done_steps = 0
 
     legend = st.empty()
@@ -807,12 +777,13 @@ if st.button("💾 Subir fotos", type="primary"):
             done_steps += 1
             _set_progress()
 
+        # PDF stage
         done_steps += 1
         _set_progress()
 
         if flags["new_anything"]:
             try:
-                pdf_bytes = build_pdf_from_images_high_quality(previews)
+                pdf_bytes = build_pdf_from_images_letter_high_quality(previews)
                 ts_pdf = datetime.now().strftime("%Y%m%d_%H%M%S")
                 pdf_name = f"{folio}_fotos_{ts_pdf}.pdf"
                 upload_small_file_to_folder(target_folder_id, pdf_name, pdf_bytes, "application/pdf")
@@ -829,9 +800,11 @@ if st.button("💾 Subir fotos", type="primary"):
         pct_line.markdown("100%")
         legend.markdown("**Finalizado**")
 
+        # Clear stacks after upload
         st.session_state.camera_photos = []
         st.session_state.gallery_photos = []
 
+        # Success screen
         st.session_state.uploaded_ok = True
         st.session_state.uploaded_folio = folio
         st.session_state.uploaded_total = counter["n"]
