@@ -104,7 +104,10 @@ input, textarea {
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.20) !important;
   border-radius: 14px !important;
+  padding: 10px 12px !important;
 }
+
+/* Button styling inside camera */
 [data-testid="stCameraInput"] *{
   color: #0B0F14 !important;
 }
@@ -122,34 +125,42 @@ input, textarea {
   filter: brightness(0.95) !important;
 }
 
-/* ✅ Make camera preview responsive (especially on phones in landscape) */
+/* ✅ FIX: Control the preview height with a CSS variable */
+[data-testid="stCameraInput"]{
+  --cam-preview-h: 52vh; /* default (portrait / normal) */
+}
+
+/* Force the actual preview media to use the height */
 [data-testid="stCameraInput"] video,
-[data-testid="stCameraInput"] img {
+[data-testid="stCameraInput"] img,
+[data-testid="stCameraInput"] canvas {
   width: 100% !important;
-  height: auto !important;
+  height: var(--cam-preview-h) !important;
+  max-height: var(--cam-preview-h) !important;
   object-fit: contain !important;
+  object-position: center center !important;
   border-radius: 12px !important;
+  display: block !important;
+  margin: 0 auto !important;
+  background: #111827 !important; /* dark behind letterboxing */
 }
 
-/* Default max height (portrait / normal) */
+/* Portrait: slightly taller preview is ok */
 @media (orientation: portrait) {
-  [data-testid="stCameraInput"] video,
-  [data-testid="stCameraInput"] img {
-    max-height: 55vh !important;
+  [data-testid="stCameraInput"]{
+    --cam-preview-h: 52vh;
   }
 }
 
-/* Landscape on mobile: keep the camera preview smaller so user can see buttons */
+/* ✅ Landscape on phones/tablets: make preview SMALLER (practical) */
 @media (orientation: landscape) and (max-height: 520px) {
-  [data-testid="stCameraInput"] video,
-  [data-testid="stCameraInput"] img {
-    max-height: 34vh !important;
-  }
-  /* reduce vertical whitespace */
   [data-testid="stCameraInput"]{
-    padding-bottom: 6px !important;
+    --cam-preview-h: 220px; /* <-- key: smaller fixed height */
+    padding: 8px 10px !important;
   }
-  h3 { font-size: 1.25rem !important; }
+
+  /* Also reduce big headings a bit so buttons stay visible */
+  h3 { font-size: 1.15rem !important; }
 }
 
 /* Buttons */
@@ -318,14 +329,12 @@ def scroll_to_top():
               try { doc.querySelector('div[data-testid="stMainBlockContainer"]')?.scrollTo(0,0); } catch(e) {}
               try { doc.querySelector('div[data-testid="stMainBlockContainer"]')?.scrollTop = 0; } catch(e) {}
             }
-
             function run() {
               try { window.scrollTo(0,0); } catch(e) {}
               try { doScroll(document); } catch(e) {}
               try { doScroll(window.parent.document); } catch(e) {}
               try { window.parent.scrollTo(0,0); } catch(e) {}
             }
-
             run();
             setTimeout(run, 50);
             setTimeout(run, 250);
@@ -361,7 +370,6 @@ def render_header():
         )
 
     st.markdown('<div class="hr-soft"></div>', unsafe_allow_html=True)
-
     st.markdown(
         """
 1) Escribe el **folio** de tu cotización (formato: `251215-0FF480`)  
@@ -446,7 +454,7 @@ def upload_small_file_to_folder(folder_item_id: str, filename: str, file_bytes: 
     r.raise_for_status()
 
 # ----------------------------------------------------
-# DUPLICATE AVOIDANCE (per folio folder, by hash tag in filename)
+# DUPLICATE AVOIDANCE
 # ----------------------------------------------------
 def sha256_bytes(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
@@ -496,12 +504,10 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
         page_w, page_h = (rl_landscape(letter) if is_landscape else letter)
         c.setPageSize((page_w, page_h))
 
-        # embed as lossless PNG (no quality loss)
         png_buf = io.BytesIO()
         img.save(png_buf, format="PNG", optimize=False)
         png_buf.seek(0)
 
-        # fit image within letter page
         avail_w = page_w - 2 * margin
         avail_h = page_h - 2 * margin
         scale = min(avail_w / w_px, avail_h / h_px)
@@ -615,10 +621,6 @@ if st.session_state.final_screen:
 # SUCCESS SCREEN
 # ----------------------------------------------------
 if st.session_state.uploaded_ok:
-    if st.session_state.last_screen != _current_screen():
-        scroll_to_top()
-        st.session_state.last_screen = _current_screen()
-
     folio = st.session_state.uploaded_folio
     total = st.session_state.uploaded_total
     previews = st.session_state.uploaded_previews or []
@@ -679,10 +681,6 @@ if st.session_state.uploaded_ok:
 # ----------------------------------------------------
 # MAIN SCREEN
 # ----------------------------------------------------
-if st.session_state.last_screen != _current_screen():
-    scroll_to_top()
-    st.session_state.last_screen = _current_screen()
-
 render_header()
 scroll_to_top()
 
@@ -699,7 +697,7 @@ if not is_valid_folio(folio):
 
 st.success(f"Folio válido: **{folio}**")
 
-# ✅ INE photo guide (ONLY on upload/take-photo screen)
+# INE guide
 instrucciones_path = Path(__file__).parent / "ineCorrecto.jpeg"
 if not instrucciones_path.exists():
     instrucciones_path = Path("/mnt/data/ineCorrecto.jpeg")
@@ -723,7 +721,6 @@ uploaded_files = st.file_uploader(
     key="gallery_uploader",
 )
 
-# ✅ Only overwrite gallery state when there are actual files
 if uploaded_files is not None and len(uploaded_files) > 0:
     new_list = []
     for f in uploaded_files:
