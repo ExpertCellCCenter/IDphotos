@@ -81,8 +81,7 @@ input, textarea {
 }
 
 /* -----------------------------
-   ✅ CAMERA SHELL: HARD WIDTH LOCK
-   This wrapper is what prevents the camera from expanding in landscape.
+   ✅ CAMERA SHELL: WIDTH LOCK (already good)
 ------------------------------ */
 .camera-shell{
   width: min(480px, 100%) !important;
@@ -94,7 +93,7 @@ input, textarea {
 /* On landscape phones/tablets: keep it SMALL and STABLE (does NOT expand full width) */
 @media (orientation: landscape) and (max-width: 1400px){
   .camera-shell{
-    width: min(480px, 92vw) !important;   /* fixed cap */
+    width: min(480px, 92vw) !important;
     max-width: 480px !important;
   }
 }
@@ -104,26 +103,25 @@ input, textarea {
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 auto !important;
-}
 
-/* Camera widget styling */
-.camera-shell [data-testid="stCameraInput"]{
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.20) !important;
   border-radius: 14px !important;
+
+  /* ✅ Reduce height overall (en lo alto) by reducing preview height */
+  --cam-preview-h: 240px; /* portrait default (smaller than before) */
   padding: 10px 12px !important;
-  --cam-preview-h: 320px; /* portrait default */
 }
 
-/* Landscape: shorter preview so buttons are always visible */
+/* ✅ Landscape: MUCH smaller preview so user can frame & see the Take Photo button */
 @media (orientation: landscape) and (max-width: 1400px){
   .camera-shell [data-testid="stCameraInput"]{
-    --cam-preview-h: 200px;
+    --cam-preview-h: 140px;   /* <<< THIS is the key height reduction */
     padding: 8px 10px !important;
   }
 }
 
-/* Video / preview area */
+/* ✅ Preview area sizing */
 .camera-shell [data-testid="stCameraInput"] video,
 .camera-shell [data-testid="stCameraInput"] img,
 .camera-shell [data-testid="stCameraInput"] canvas{
@@ -139,17 +137,20 @@ input, textarea {
   background: #111827 !important;
 }
 
-/* Camera buttons */
-.camera-shell [data-testid="stCameraInput"] *{ color: #0B0F14 !important; }
+/* ✅ FORCE "TAKE PHOTO" BUTTON to be BLUE and visible */
 .camera-shell [data-testid="stCameraInput"] button{
-  background: #00A8E0 !important;
+  background-color: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 12px !important;
-  font-weight: 800 !important;
+  font-weight: 900 !important;
+  height: 48px !important;
+  padding: 0.55rem 1rem !important;
+  margin-top: 10px !important;
 }
-.camera-shell [data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
-.camera-shell [data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
+.camera-shell [data-testid="stCameraInput"] button *{
+  color: #FFFFFF !important;
+}
 
 /* Buttons */
 .stButton > button {
@@ -249,7 +250,7 @@ div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# SCROLL TO TOP ON SCREEN CHANGE
+# SCROLL TO TOP
 # ----------------------------------------------------
 def scroll_to_top():
     components.html(
@@ -313,7 +314,7 @@ def render_header():
         """
 1) Escribe el **folio** de tu cotización (formato: `251215-0FF480`)  
 2) Sube fotos desde tu galería **y/o** toma fotos con la cámara (puedes tomar varias)  
-3) Presiona **Subir fotos** → se subirán al sistema   
+3) Presiona **Subir fotos** → se subirán al sistema
 """
     )
 
@@ -675,7 +676,7 @@ if st.session_state.gallery_photos:
 st.markdown("---")
 
 # --------------------
-# CAMERA (MULTI)  ✅ WRAPPED TO LOCK WIDTH
+# CAMERA (MULTI)  ✅ WRAPPED
 # --------------------
 st.subheader("📸 Tomar fotos con la cámara (puedes tomar varias)")
 
@@ -715,7 +716,7 @@ if st.session_state.camera_photos:
 st.markdown("---")
 
 # --------------------
-# UPLOAD BUTTON (bar + % + legend)
+# UPLOAD BUTTON
 # --------------------
 if st.button("💾 Subir fotos", type="primary"):
     if (not st.session_state.gallery_photos) and (not st.session_state.camera_photos):
