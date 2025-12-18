@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 import requests
 from PIL import Image, ImageOps
 
-import numpy as np  # ✅ for mobile orientation heuristic
+import numpy as np  # for mobile orientation heuristic
 
 # PDF
 from reportlab.pdfgen import canvas
@@ -98,7 +98,7 @@ input, textarea {
 [data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
 [data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
 
-/* Make camera preview responsive */
+/* Responsive preview */
 div[data-testid="stCameraInput"] video,
 div[data-testid="stCameraInput"] img{
   width: 100% !important;
@@ -193,6 +193,49 @@ div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
 .success-v{ font-size: 1.15rem; font-weight: 800; margin: 2px 0 0 0; }
 .preview-wrap{ margin-top: 14px; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 14px; }
 .preview-title{ font-weight: 800; margin-bottom: 10px; opacity: 0.95; }
+
+/* ------------------------------------------------
+   ✅ LANDSCAPE MODE IMPROVEMENTS (mobile-friendly)
+------------------------------------------------- */
+@media (orientation: landscape) and (max-height: 560px) {
+  /* Use full width in landscape */
+  div[data-testid="stMainBlockContainer"]{
+    max-width: 100% !important;
+    padding-left: 0.9rem !important;
+    padding-right: 0.9rem !important;
+  }
+
+  /* Reduce header footprint */
+  .brand-title{ font-size: 1.25rem !important; }
+  .brand-subtitle{ display:none !important; }
+  .hr-soft{ margin: 6px 0 10px 0 !important; }
+
+  /* Tighten markdown spacing */
+  div[data-testid="stMarkdownContainer"] p{ margin-bottom: 0.35rem !important; }
+
+  /* Make camera preview BIGGER (key change) */
+  div[data-testid="stCameraInput"]{
+    padding: 8px !important;
+  }
+  div[data-testid="stCameraInput"] video{
+    height: 62vh !important;
+    max-height: 62vh !important;
+  }
+  div[data-testid="stCameraInput"] img{
+    max-height: 62vh !important;
+  }
+
+  /* Make buttons more compact */
+  .stButton > button{
+    padding: 0.42rem 0.75rem !important;
+    border-radius: 12px !important;
+  }
+
+  /* Slightly smaller subheaders */
+  h2, h3{
+    margin-bottom: 0.35rem !important;
+  }
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -273,7 +316,7 @@ def render_header():
     )
 
 # ----------------------------------------------------
-# FOLIO FORMAT
+# FOLIO
 # ----------------------------------------------------
 FOLIO_PATTERN = re.compile(r"^\d{6}-[A-Z0-9]{6}$")
 
@@ -290,7 +333,6 @@ def is_valid_folio(folio: str) -> bool:
 # ----------------------------------------------------
 def _user_agent_lower() -> str:
     try:
-        # Newer Streamlit
         ua = st.context.headers.get("User-Agent", "")
         return (ua or "").lower()
     except Exception:
@@ -306,7 +348,7 @@ def is_mobile_device() -> bool:
 IS_MOBILE = is_mobile_device()
 
 # ----------------------------------------------------
-# HELPERS
+# IMAGE HELPERS
 # ----------------------------------------------------
 def _guess_suffix(mime: str | None, fallback_name: str | None = None) -> str:
     if fallback_name:
@@ -330,7 +372,6 @@ def sha256_bytes(b: bytes) -> str:
 
 def _open_img_safe(b: bytes) -> Image.Image:
     img = Image.open(io.BytesIO(b))
-    # ✅ EXIF transpose (when EXIF exists)
     img = ImageOps.exif_transpose(img)
     return img
 
@@ -345,10 +386,6 @@ def _to_png_bytes(img: Image.Image) -> bytes:
     return buf.read()
 
 def _projection_score(img: Image.Image) -> float:
-    """
-    Heuristic for documents: upright orientation tends to have more variation across rows (text lines)
-    than across columns. We compare row-variance vs col-variance on a downscaled grayscale copy.
-    """
     g = img.convert("L")
     w, h = g.size
     max_side = 480
@@ -362,16 +399,10 @@ def _projection_score(img: Image.Image) -> float:
     return float(row.var() - col.var())
 
 def normalize_camera_orientation_mobile(img: Image.Image) -> Image.Image:
-    """
-    ✅ Mobile fix: choose 0° vs 90° (CW) based on document-like projection score.
-    Only used for camera photos on mobile.
-    """
     try:
         score0 = _projection_score(img)
         img90 = img.rotate(270, expand=True)  # 90° CW
         score90 = _projection_score(img90)
-
-        # Rotate only if it improves the score (more "horizontal text lines" feel)
         if score90 > score0:
             return img90
         return img
@@ -379,15 +410,8 @@ def normalize_camera_orientation_mobile(img: Image.Image) -> Image.Image:
         return img
 
 def prepare_for_storage(b: bytes, mime: str | None, source: str) -> tuple[bytes, str | None, str]:
-    """
-    - Opens image
-    - EXIF transpose
-    - ✅ If source is camera AND device is mobile -> apply robust 0/90 auto-rotation
-    - Saves as lossless PNG (keeps quality, removes EXIF confusion)
-    """
     try:
         img = _open_img_safe(b)
-
         if source == "camera" and IS_MOBILE:
             img = normalize_camera_orientation_mobile(img)
 
@@ -397,9 +421,6 @@ def prepare_for_storage(b: bytes, mime: str | None, source: str) -> tuple[bytes,
         return b, mime, _guess_suffix(mime)
 
 def normalize_for_preview(b: bytes, source: str) -> Image.Image | None:
-    """
-    For UI previews: show corrected orientation (same logic), without changing storage bytes here.
-    """
     try:
         img = _open_img_safe(b)
         if source == "camera" and IS_MOBILE:
@@ -489,7 +510,7 @@ def list_existing_hashes(folder_item_id: str, max_pages: int = 10) -> set[str]:
     return hashes
 
 # ----------------------------------------------------
-# PDF BUILDER (LETTER + no-upscale for quality)
+# PDF BUILDER (LETTER + no-upscale)
 # ----------------------------------------------------
 def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
     if not image_bytes_list:
@@ -510,7 +531,6 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
 
         w_px, h_px = img.size
 
-        # ✅ Always LETTER (portrait/landscape depending on image)
         if w_px >= h_px:
             page_w, page_h = landscape(letter)
         else:
@@ -522,9 +542,7 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
 
         max_w = page_w - 2 * margin
         max_h = page_h - 2 * margin
-
-        # ✅ IMPORTANT: never upscale -> avoids "horrible" pixelated look
-        scale = min(max_w / w_px, max_h / h_px, 1.0)
+        scale = min(max_w / w_px, max_h / h_px, 1.0)  # never upscale
 
         draw_w = w_px * scale
         draw_h = h_px * scale
@@ -728,7 +746,6 @@ uploaded_files = st.file_uploader(
     key="gallery_uploader",
 )
 
-# Only overwrite if there are actual files
 if uploaded_files is not None and len(uploaded_files) > 0:
     new_list = []
     for f in uploaded_files:
@@ -745,17 +762,20 @@ if st.session_state.gallery_photos:
 st.markdown("---")
 
 # --------------------
-# CAMERA (MULTI)
+# CAMERA (MULTI) - ✅ friendlier for landscape via columns
 # --------------------
 st.subheader("📸 Tomar fotos con la cámara (puedes tomar varias)")
-camera_photo = st.camera_input("Toma una foto y luego pulsa **Agregar foto tomada**", key="camera_input")
 
-c1, c2, c3 = st.columns([1, 1, 1])
-with c1:
+# Big preview left, actions right (helps a lot in landscape)
+cam_col, act_col = st.columns([3, 2], vertical_alignment="top")
+
+with cam_col:
+    camera_photo = st.camera_input("Toma una foto", key="camera_input")
+
+with act_col:
+    st.caption("Después de tomarla, pulsa **Agregar foto tomada**.")
     add_cam = st.button("➕ Agregar foto tomada", use_container_width=True)
-with c2:
     clear_cam = st.button("🗑️ Quitar fotos tomadas", use_container_width=True)
-with c3:
     st.metric("Fotos tomadas", len(st.session_state.camera_photos))
 
 if clear_cam:
@@ -821,7 +841,6 @@ if st.button("💾 Subir fotos", type="primary"):
         existing_hash_prefixes = list_existing_hashes(target_folder_id)
         seen_this_run: set[str] = set()
 
-        # PDF uses normalized bytes (correct orientation + lossless)
         pdf_images_bytes: list[bytes] = []
         counter = {"n": 0}
         flags = {"new_anything": False}
@@ -842,7 +861,6 @@ if st.button("💾 Subir fotos", type="primary"):
             flags["new_anything"] = True
             return True
 
-        # Upload gallery
         for g in gallery_items:
             store_b, store_m, store_s = prepare_for_storage(g["bytes"], g.get("mime"), "upload")
             pdf_images_bytes.append(store_b)
@@ -850,7 +868,6 @@ if st.button("💾 Subir fotos", type="primary"):
             done_steps += 1
             _set_progress()
 
-        # Upload camera (mobile fix applied here)
         for p in camera_items:
             store_b, store_m, store_s = prepare_for_storage(p["bytes"], p.get("mime"), "camera")
             pdf_images_bytes.append(store_b)
@@ -858,7 +875,6 @@ if st.button("💾 Subir fotos", type="primary"):
             done_steps += 1
             _set_progress()
 
-        # PDF step
         done_steps += 1
         _set_progress()
 
@@ -881,11 +897,9 @@ if st.button("💾 Subir fotos", type="primary"):
         pct_line.markdown("100%")
         legend.markdown("**Finalizado**")
 
-        # Clear stacks
         st.session_state.camera_photos = []
         st.session_state.gallery_photos = []
 
-        # Success screen (show normalized previews)
         st.session_state.uploaded_ok = True
         st.session_state.uploaded_folio = folio
         st.session_state.uploaded_total = counter["n"]
