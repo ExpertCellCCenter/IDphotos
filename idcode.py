@@ -8,7 +8,7 @@ from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
-from PIL import Image, ImageOps, ImageChops, ImageStat
+from PIL import Image, ImageOps
 
 # High-quality PDF (no downscale / no recompress artifacts)
 from reportlab.pdfgen import canvas
@@ -266,8 +266,77 @@ div[data-testid="stExpander"] details > div{
     unsafe_allow_html=True,
 )
 
-# Anchor always present (helps scrollIntoView on mobile)
+# Anchor always present (helps scrollIntoView says)
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
+
+# ----------------------------------------------------
+# Keep URL query params updated with device orientation (iOS + Android)
+# ----------------------------------------------------
+components.html(
+    """
+<script>
+(function () {
+  function updateQP() {
+    try {
+      const url = new URL(window.location.href);
+
+      const isLandscape = window.matchMedia && window.matchMedia("(orientation: landscape)").matches;
+      const ori = isLandscape ? "landscape" : "portrait";
+
+      let ang = 0;
+      try {
+        if (screen.orientation && typeof screen.orientation.angle === "number") {
+          ang = screen.orientation.angle;              // Android Chrome, etc.
+        } else if (typeof window.orientation === "number") {
+          ang = window.orientation;                    // iOS Safari
+        }
+      } catch (e) {}
+
+      ang = ((ang % 360) + 360) % 360;
+
+      const ua = navigator.userAgent || "";
+      const isMobile = /iPhone|iPad|iPod|Android|Mobi/i.test(ua) ? "1" : "0";
+
+      let changed = false;
+      if (url.searchParams.get("ori") !== ori) { url.searchParams.set("ori", ori); changed = true; }
+      if (url.searchParams.get("angle") !== String(ang)) { url.searchParams.set("angle", String(ang)); changed = true; }
+      if (url.searchParams.get("mob") !== isMobile) { url.searchParams.set("mob", isMobile); changed = true; }
+
+      if (changed) window.history.replaceState({}, "", url.toString());
+    } catch(e) {}
+  }
+
+  updateQP();
+  window.addEventListener("resize", updateQP, {passive:true});
+  window.addEventListener("orientationchange", updateQP, {passive:true});
+})();
+</script>
+""",
+    height=0,
+)
+
+def _qp_get(key: str, default: str = "") -> str:
+    try:
+        v = st.query_params.get(key, default)  # new streamlit
+        if isinstance(v, list):
+            v = v[0] if v else default
+        return str(v) if v is not None else default
+    except Exception:
+        qp = st.experimental_get_query_params()  # old streamlit
+        v = qp.get(key, [default])
+        return str(v[0]) if v else default
+
+def _client_ctx():
+    ori = _qp_get("ori", "portrait").lower()
+    angle_raw = _qp_get("angle", "0")
+    mob = _qp_get("mob", "0") == "1"
+    try:
+        ang = int(float(angle_raw)) % 360
+    except Exception:
+        ang = 0
+    if ori not in ("portrait", "landscape"):
+        ori = "portrait"
+    return ori, ang, mob
 
 # ----------------------------------------------------
 # SCROLL TO TOP ON SCREEN CHANGE (more robust for mobile)
@@ -354,98 +423,55 @@ def is_valid_folio(folio: str) -> bool:
     return bool(FOLIO_PATTERN.match(folio))
 
 # ----------------------------------------------------
-# CAMERA ORIENTATION FIX (does NOT break desktop)
-# - chooses between ORIGINAL vs EXIF-transposed using a lightweight score,
-# - then re-encodes WITHOUT EXIF so OneDrive won't rotate it.
+# CAMERA FIX (mobile-only rotation) + keep quality (PNG)
 # ----------------------------------------------------
-def _doc_upright_score(img: Image.Image) -> float:
-    """
-    Score based on "horizontal structure" typical of documents/text.
-    Higher is better. Very lightweight and dependency-free.
-    """
-    g = img.convert("L")
+def _guess_suffix(mime: str | None, fallback_name: str | None = None) -> str:
+    if fallback_name:
+        s = Path(fallback_name).suffix
+        if s:
+            return s.lower()
 
-    w, h = g.size
-    max_side = 900
-    if max(w, h) > max_side:
-        scale = max_side / float(max(w, h))
-        g = g.resize((max(1, int(w * scale)), max(1, int(h * scale))))
+    if not mime:
+        return ".jpg"
+    m = mime.lower()
+    if "png" in m:
+        return ".png"
+    if "heic" in m or "heif" in m:
+        return ".heic"
+    if "jpeg" in m or "jpg" in m:
+        return ".jpg"
+    return ".jpg"
 
-    w, h = g.size
-    if w < 3 or h < 3:
-        return 0.0
-
-    # Differences (no wrap) to estimate gradient energy
-    gx = ImageChops.difference(g.crop((1, 0, w, h)), g.crop((0, 0, w - 1, h)))
-    gy = ImageChops.difference(g.crop((0, 1, w, h)), g.crop((0, 0, w, h - 1)))
-
-    sx = float(ImageStat.Stat(gx).sum[0])  # vertical-edge energy
-    sy = float(ImageStat.Stat(gy).sum[0])  # horizontal-edge energy
-    return (sy + 1.0) / (sx + 1.0)
-
-def _choose_best_orientation(original: Image.Image) -> Image.Image:
-    """
-    Compare original vs exif_transpose. Only accept EXIF rotation if it clearly improves the doc-score.
-    This prevents desktop photos from being incorrectly rotated.
-    """
-    ex = ImageOps.exif_transpose(original)
-
-    # If nothing changed, keep original
-    if ex.size == original.size:
-        # exif_transpose may still return a new object but same pixels/orientation;
-        # keep original to be conservative.
-        return original
-
-    s0 = _doc_upright_score(original)
-    s1 = _doc_upright_score(ex)
-
-    # Only rotate if clearly better
-    if s1 > s0 * 1.10:
-        return ex
-    return original
-
-def normalize_camera_bytes(b: bytes, mime: str | None) -> tuple[bytes, str | None, str]:
-    """
-    Fix orientation for CAMERA shots only, and strip EXIF by re-encoding.
-    Returns (bytes_fixed, mime_fixed, suffix_fixed)
-    """
+def normalize_camera_bytes(b: bytes, mime: str | None, client_ori: str, client_angle: int, is_mobile: bool) -> tuple[bytes, str | None, str]:
     try:
         img = Image.open(io.BytesIO(b))
-        img = _choose_best_orientation(img)
+        img = ImageOps.exif_transpose(img)
 
-        m = (mime or "").lower()
+        w, h = img.size
 
-        # Preserve PNG if it's PNG (lossless)
-        if "png" in m:
-            if img.mode not in ("RGB", "RGBA"):
-                img = img.convert("RGB")
-            out = io.BytesIO()
-            img.save(out, format="PNG", optimize=False)  # no EXIF here
-            out.seek(0)
-            return out.read(), "image/png", ".png"
+        # ✅ ONLY on mobile: if device was landscape but image arrives portrait -> rotate by angle
+        if is_mobile and client_ori == "landscape" and h > w:
+            ang = client_angle % 360
+            if ang == 90:
+                img = img.rotate(270, expand=True)
+            elif ang == 270:
+                img = img.rotate(90, expand=True)
+            else:
+                img = img.rotate(270, expand=True)
 
-        # Otherwise encode JPEG (strips EXIF by default)
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
         elif img.mode != "RGB":
             img = img.convert("RGB")
 
+        # ✅ PNG lossless to avoid PDF quality loss
         out = io.BytesIO()
-        img.save(out, format="JPEG", quality=95, subsampling=0, optimize=False)  # no exif=...
+        img.save(out, format="PNG", optimize=False)
         out.seek(0)
-        return out.read(), "image/jpeg", ".jpg"
+        return out.read(), "image/png", ".png"
 
     except Exception:
-        # fallback: keep original
-        suffix = ".jpg"
-        m = (mime or "").lower()
-        if "png" in m:
-            suffix = ".png"
-        elif "jpeg" in m or "jpg" in m:
-            suffix = ".jpg"
-        elif "heic" in m or "heif" in m:
-            suffix = ".heic"
-        return b, mime, suffix
+        return b, mime, _guess_suffix(mime)
 
 # ----------------------------------------------------
 # ONEDRIVE / GRAPH HELPERS
@@ -554,6 +580,7 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
 
         w_px, h_px = img.size
 
+        # Lossless PNG embedding to avoid JPEG recompression
         png_buf = io.BytesIO()
         img.save(png_buf, format="PNG", optimize=False)
         png_buf.seek(0)
@@ -585,23 +612,6 @@ if "final_screen" not in st.session_state:
     st.session_state.final_screen = False
 if "last_screen" not in st.session_state:
     st.session_state.last_screen = ""
-
-def _guess_suffix(mime: str | None, fallback_name: str | None = None) -> str:
-    if fallback_name:
-        s = Path(fallback_name).suffix
-        if s:
-            return s.lower()
-
-    if not mime:
-        return ".jpg"
-    m = mime.lower()
-    if "png" in m:
-        return ".png"
-    if "heic" in m or "heif" in m:
-        return ".heic"
-    if "jpeg" in m or "jpg" in m:
-        return ".jpg"
-    return ".jpg"
 
 def reset_flow():
     st.session_state.camera_photos = []
@@ -776,9 +786,7 @@ if uploaded_files is not None and len(uploaded_files) > 0:
     new_list = []
     for f in uploaded_files:
         b = f.getvalue()
-        new_list.append(
-            {"bytes": b, "mime": f.type, "suffix": _guess_suffix(f.type, f.name), "name": f.name}
-        )
+        new_list.append({"bytes": b, "mime": f.type, "suffix": _guess_suffix(f.type, f.name), "name": f.name})
     st.session_state.gallery_photos = new_list
 
 if st.session_state.gallery_photos:
@@ -812,9 +820,14 @@ if add_cam:
     if camera_photo is None:
         st.warning("Primero toma una foto con la cámara.")
     else:
-        b = camera_photo.getvalue()
-        mime = camera_photo.type
-        st.session_state.camera_photos.append({"bytes": b, "mime": mime, "suffix": _guess_suffix(mime)})
+        client_ori, client_angle, is_mobile = _client_ctx()
+
+        raw_b = camera_photo.getvalue()
+        raw_m = camera_photo.type
+
+        b_fixed, m_fixed, s_fixed = normalize_camera_bytes(raw_b, raw_m, client_ori, client_angle, is_mobile)
+
+        st.session_state.camera_photos.append({"bytes": b_fixed, "mime": m_fixed, "suffix": s_fixed})
         st.success(f"✅ Foto agregada. Ya tienes {len(st.session_state.camera_photos)} foto(s) tomada(s).")
         st.rerun()
 
@@ -862,8 +875,7 @@ if st.button("💾 Subir fotos", type="primary"):
         existing_hash_prefixes = list_existing_hashes(target_folder_id)
         seen_this_run: set[str] = set()
 
-        # Previews = gallery raw + camera normalized (so user sees exactly what was stored)
-        previews: list[bytes] = [g["bytes"] for g in gallery_items]
+        previews: list[bytes] = [g["bytes"] for g in gallery_items] + [p["bytes"] for p in camera_items]
 
         counter = {"n": 0}
         flags = {"new_anything": False}
@@ -884,17 +896,13 @@ if st.button("💾 Subir fotos", type="primary"):
             flags["new_anything"] = True
             return True
 
-        # Upload gallery photos (UNCHANGED)
         for g in gallery_items:
             maybe_upload_image(g["bytes"], g["mime"], "upload", g["suffix"])
             done_steps += 1
             _set_progress()
 
-        # Upload camera photos (NORMALIZED to prevent desktop wrong rotations + fix mobile)
         for p in camera_items:
-            b_fixed, mime_fixed, suffix_fixed = normalize_camera_bytes(p["bytes"], p["mime"])
-            previews.append(b_fixed)
-            maybe_upload_image(b_fixed, mime_fixed, "camera", suffix_fixed)
+            maybe_upload_image(p["bytes"], p["mime"], "camera", p["suffix"])
             done_steps += 1
             _set_progress()
 
@@ -939,4 +947,3 @@ if st.button("💾 Subir fotos", type="primary"):
     except Exception as e:
         st.error("❌ Error inesperado.")
         st.code(str(e))
-
