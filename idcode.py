@@ -141,12 +141,34 @@ input, textarea {
   color: #0B0F14 !important;
 }
 
-/* Expanders */
-details{
+/* -----------------------------
+   EXPANDERS: blue header like buttons
+------------------------------ */
+div[data-testid="stExpander"] details{
   background: #FFFFFF !important;
   border: 1px solid rgba(0,0,0,0.08) !important;
   border-radius: 14px !important;
-  padding: 6px 10px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+div[data-testid="stExpander"] details > summary{
+  background: #00A8E0 !important;
+  color: #FFFFFF !important;
+  padding: 10px 14px !important;
+  font-weight: 800 !important;
+  border-radius: 14px !important;
+  margin: 0 !important;
+}
+div[data-testid="stExpander"] details > summary *{
+  color: #FFFFFF !important;
+}
+div[data-testid="stExpander"] details[open] > summary{
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-bottom: 1px solid rgba(0,0,0,0.08) !important;
+}
+div[data-testid="stExpander"] details > div{
+  padding: 10px 12px !important;
 }
 
 /* Header */
@@ -566,6 +588,17 @@ if not is_valid_folio(folio):
 
 st.success(f"Folio válido: **{folio}**")
 
+# ✅ INE photo guide (ONLY on upload/take-photo screen)
+instrucciones_path = Path(__file__).parent / "ineCorrecto.jpeg"
+if not instrucciones_path.exists():
+    instrucciones_path = Path("/mnt/data/ineCorrecto.jpeg")
+
+with st.expander("🪪 Guía: cómo tomar correctamente la foto (INE)", expanded=True):
+    if instrucciones_path.exists():
+        st.image(str(instrucciones_path), use_container_width=True)
+    else:
+        st.warning("No se encontró la imagen de instrucciones (ineCorrecto.jpeg).")
+
 base_folder = st.secrets["azure_app"].get("onedrive_base_folder", "fotos_cotizaciones")
 
 # --------------------
@@ -640,22 +673,38 @@ if st.session_state.camera_photos:
 st.markdown("---")
 
 # --------------------
-# UPLOAD BUTTON
+# UPLOAD BUTTON (ONLY bar + % + legend: Subiendo/Finalizado)
 # --------------------
 if st.button("💾 Subir fotos", type="primary"):
     if (not st.session_state.gallery_photos) and (not st.session_state.camera_photos):
         st.warning("No seleccionaste fotos de galería ni agregaste fotos tomadas.")
         st.stop()
 
+    total_selected = len(st.session_state.gallery_photos) + len(st.session_state.camera_photos)
+    total_steps = max(1, total_selected) + 2  # 1: folder prep + photos + 1: PDF stage
+    done_steps = 0
+
+    legend = st.empty()
+    progress_bar = st.progress(0)
+    pct_line = st.empty()
+
+    def _set_progress():
+        pct = int(min(100, (done_steps / total_steps) * 100))
+        progress_bar.progress(pct)
+        pct_line.markdown(f"{pct}%")
+        legend.markdown("**Finalizado**" if pct >= 100 else "**Subiendo**")
+
     try:
+        legend.markdown("**Subiendo**")
+        pct_line.markdown("0%")
+
         target_folder_id = ensure_path([base_folder, folio])
+        done_steps += 1
+        _set_progress()
 
         existing_hash_prefixes = list_existing_hashes(target_folder_id)
         seen_this_run: set[str] = set()
 
-        # ✅ IMPORTANT CHANGE:
-        # Use previews from the photos the user selected/took (so preview always appears),
-        # not only the photos that were "new" after dedup.
         previews: list[bytes] = (
             [g["bytes"] for g in st.session_state.gallery_photos]
             + [p["bytes"] for p in st.session_state.camera_photos]
@@ -680,15 +729,22 @@ if st.button("💾 Subir fotos", type="primary"):
             new_photo_bytes_for_pdf.append(b)
             return True
 
-        # Upload gallery photos (from session_state)
+        # Upload gallery photos
         for g in st.session_state.gallery_photos:
             maybe_upload_image(g["bytes"], g["mime"], "upload", g["suffix"])
+            done_steps += 1
+            _set_progress()
 
         # Upload camera photos
         for p in st.session_state.camera_photos:
             maybe_upload_image(p["bytes"], p["mime"], "camera", p["suffix"])
+            done_steps += 1
+            _set_progress()
 
-        # Upload PDF only if new photos were uploaded
+        # PDF step (counts for progress)
+        done_steps += 1
+        _set_progress()
+
         if new_photo_bytes_for_pdf:
             try:
                 pdf_bytes = build_pdf_from_images_high_quality(new_photo_bytes_for_pdf)
@@ -704,6 +760,10 @@ if st.button("💾 Subir fotos", type="primary"):
         else:
             st.info("No se subió nada nuevo (todas las fotos ya existían en el sistema).")
 
+        progress_bar.progress(100)
+        pct_line.markdown("100%")
+        legend.markdown("**Finalizado**")
+
         # Clear stacks after upload
         st.session_state.camera_photos = []
         st.session_state.gallery_photos = []
@@ -712,7 +772,7 @@ if st.button("💾 Subir fotos", type="primary"):
         st.session_state.uploaded_ok = True
         st.session_state.uploaded_folio = folio
         st.session_state.uploaded_total = counter["n"]  # new files uploaded (dedup)
-        st.session_state.uploaded_previews = previews    # ✅ show what user selected/took
+        st.session_state.uploaded_previews = previews    # show what user selected/took
         st.rerun()
 
     except requests.HTTPError as e:
