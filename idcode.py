@@ -10,13 +10,10 @@ import streamlit.components.v1 as components
 import requests
 from PIL import Image, ImageOps
 
-import numpy as np  # for mobile orientation heuristic
-
-# PDF
+# High-quality PDF
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
-from reportlab.lib.pagesizes import letter, landscape, portrait
-from reportlab.lib.units import mm
+from reportlab.lib.pagesizes import letter, landscape
 
 # Optional HEIC/HEIF support
 try:
@@ -32,7 +29,8 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE
+# STYLE: LIGHT UI + HIDE TOP DARK BANNER + THEME-SAFE WIDGETS
+# + RESPONSIVE IMPROVEMENTS FOR MOBILE LANDSCAPE
 # ----------------------------------------------------
 st.markdown(
     """
@@ -44,12 +42,18 @@ footer {visibility: hidden !important;}
 div[data-testid="stAppViewContainer"] {padding-top: 0rem !important;}
 
 /* Force a light-looking app */
-.stApp { background: #ffffff !important; color: #0B0F14 !important; }
-[data-testid="stAppViewContainer"]{ background: #ffffff !important; }
-section[data-testid="stSidebar"]{ background: #F5F7FA !important; }
+.stApp, [data-testid="stAppViewContainer"]{
+  background: #ffffff !important;
+  color: #0B0F14 !important;
+}
+section[data-testid="stSidebar"]{
+  background: #F5F7FA !important;
+}
 
 /* Text */
-h1, h2, h3, h4, h5, h6, p, li, label, span, div { color: #0B0F14 !important; }
+h1, h2, h3, h4, h5, h6, p, li, label, span, div {
+  color: #0B0F14 !important;
+}
 
 /* Inputs */
 input, textarea {
@@ -59,7 +63,9 @@ input, textarea {
   border-radius: 10px !important;
 }
 
-/* FILE UPLOADER */
+/* -----------------------------
+   FILE UPLOADER: theme-safe
+------------------------------ */
 [data-testid="stFileUploaderDropzone"]{
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.25) !important;
@@ -81,7 +87,9 @@ input, textarea {
   border-color: rgba(0,168,224,0.45) !important;
 }
 
-/* CAMERA */
+/* -----------------------------
+   CAMERA: theme-safe Take Photo
+------------------------------ */
 [data-testid="stCameraInput"]{
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.20) !important;
@@ -97,14 +105,6 @@ input, textarea {
 }
 [data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
 [data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
-
-/* Responsive preview */
-div[data-testid="stCameraInput"] video,
-div[data-testid="stCameraInput"] img{
-  width: 100% !important;
-  height: auto !important;
-  object-fit: contain !important;
-}
 
 /* Buttons */
 .stButton > button {
@@ -124,7 +124,9 @@ div[data-testid="stCameraInput"] img{
   color: #0B0F14 !important;
 }
 
-/* EXPANDERS: blue header like buttons */
+/* -----------------------------
+   EXPANDERS: blue header like buttons
+------------------------------ */
 div[data-testid="stExpander"] details{
   background: #FFFFFF !important;
   border: 1px solid rgba(0,0,0,0.08) !important;
@@ -191,49 +193,55 @@ div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
 }
 .success-k{ font-size: 0.85rem; opacity: 0.85; margin: 0; }
 .success-v{ font-size: 1.15rem; font-weight: 800; margin: 2px 0 0 0; }
-.preview-wrap{ margin-top: 14px; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 14px; }
+.preview-wrap{
+  margin-top: 14px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  padding-top: 14px;
+}
 .preview-title{ font-weight: 800; margin-bottom: 10px; opacity: 0.95; }
 
-/* ------------------------------------------------
-   ✅ LANDSCAPE MODE IMPROVEMENTS (mobile-friendly)
-------------------------------------------------- */
+/* ----------------------------------------------------
+   ✅ MOBILE LANDSCAPE UX IMPROVEMENTS
+   - Use almost full width
+   - Reduce vertical whitespace
+   - Make camera preview much taller (so user can see the full shot)
+---------------------------------------------------- */
 @media (orientation: landscape) and (max-height: 560px) {
-  /* Use full width in landscape */
-  div[data-testid="stMainBlockContainer"]{
-    max-width: 100% !important;
-    padding-left: 0.9rem !important;
-    padding-right: 0.9rem !important;
+  /* block-container is the main content wrapper */
+  div.block-container{
+    max-width: 98vw !important;
+    padding-left: 0.8rem !important;
+    padding-right: 0.8rem !important;
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
   }
 
-  /* Reduce header footprint */
   .brand-title{ font-size: 1.25rem !important; }
-  .brand-subtitle{ display:none !important; }
+  .brand-subtitle{ font-size: 0.85rem !important; }
   .hr-soft{ margin: 6px 0 10px 0 !important; }
 
-  /* Tighten markdown spacing */
-  div[data-testid="stMarkdownContainer"] p{ margin-bottom: 0.35rem !important; }
+  /* Reduce markdown spacing a bit */
+  .stMarkdown p{ margin-bottom: 0.35rem !important; }
+  .stMarkdown ol, .stMarkdown ul{ margin-top: 0.15rem !important; margin-bottom: 0.15rem !important; }
 
-  /* Make camera preview BIGGER (key change) */
-  div[data-testid="stCameraInput"]{
-    padding: 8px !important;
+  /* Camera area: make the live preview much bigger */
+  [data-testid="stCameraInput"]{
+    padding: 6px 8px !important;
   }
-  div[data-testid="stCameraInput"] video{
-    height: 62vh !important;
-    max-height: 62vh !important;
-  }
-  div[data-testid="stCameraInput"] img{
-    max-height: 62vh !important;
-  }
-
-  /* Make buttons more compact */
-  .stButton > button{
-    padding: 0.42rem 0.75rem !important;
+  [data-testid="stCameraInput"] video,
+  [data-testid="stCameraInput"] img{
+    width: 100% !important;
+    height: 65vh !important;
+    max-height: 65vh !important;
+    object-fit: contain !important; /* show the whole frame */
+    background: #000 !important;
     border-radius: 12px !important;
   }
 
-  /* Slightly smaller subheaders */
-  h2, h3{
-    margin-bottom: 0.35rem !important;
+  /* Buttons: slightly smaller so they don't eat vertical space */
+  .stButton > button{
+    padding: 0.45rem 0.85rem !important;
+    font-size: 0.95rem !important;
   }
 }
 </style>
@@ -241,11 +249,11 @@ div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
     unsafe_allow_html=True,
 )
 
-# Anchor always present
+# Anchor always present (helps scrollIntoView on mobile)
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# SCROLL TO TOP
+# SCROLL TO TOP ON SCREEN CHANGE (robust for mobile)
 # ----------------------------------------------------
 def scroll_to_top():
     components.html(
@@ -282,7 +290,7 @@ def scroll_to_top():
     )
 
 # ----------------------------------------------------
-# BRAND HEADER
+# BRAND HEADER (logo + title)
 # ----------------------------------------------------
 def render_header():
     logo_path = Path(__file__).parent / "att_logo.png"
@@ -316,7 +324,7 @@ def render_header():
     )
 
 # ----------------------------------------------------
-# FOLIO
+# FOLIO FORMAT
 # ----------------------------------------------------
 FOLIO_PATTERN = re.compile(r"^\d{6}-[A-Z0-9]{6}$")
 
@@ -327,107 +335,6 @@ def normalize_folio(raw: str) -> str:
 
 def is_valid_folio(folio: str) -> bool:
     return bool(FOLIO_PATTERN.match(folio))
-
-# ----------------------------------------------------
-# DEVICE DETECTION (best-effort)
-# ----------------------------------------------------
-def _user_agent_lower() -> str:
-    try:
-        ua = st.context.headers.get("User-Agent", "")
-        return (ua or "").lower()
-    except Exception:
-        return ""
-
-def is_mobile_device() -> bool:
-    ua = _user_agent_lower()
-    if not ua:
-        return False
-    keys = ["iphone", "ipad", "ipod", "android", "mobile", "windows phone"]
-    return any(k in ua for k in keys)
-
-IS_MOBILE = is_mobile_device()
-
-# ----------------------------------------------------
-# IMAGE HELPERS
-# ----------------------------------------------------
-def _guess_suffix(mime: str | None, fallback_name: str | None = None) -> str:
-    if fallback_name:
-        s = Path(fallback_name).suffix
-        if s:
-            return s.lower()
-
-    if not mime:
-        return ".jpg"
-    m = mime.lower()
-    if "png" in m:
-        return ".png"
-    if "heic" in m or "heif" in m:
-        return ".heic"
-    if "jpeg" in m or "jpg" in m:
-        return ".jpg"
-    return ".jpg"
-
-def sha256_bytes(b: bytes) -> str:
-    return hashlib.sha256(b).hexdigest()
-
-def _open_img_safe(b: bytes) -> Image.Image:
-    img = Image.open(io.BytesIO(b))
-    img = ImageOps.exif_transpose(img)
-    return img
-
-def _to_png_bytes(img: Image.Image) -> bytes:
-    if img.mode in ("RGBA", "P"):
-        img = img.convert("RGB")
-    elif img.mode != "RGB":
-        img = img.convert("RGB")
-    buf = io.BytesIO()
-    img.save(buf, format="PNG", optimize=False)  # lossless
-    buf.seek(0)
-    return buf.read()
-
-def _projection_score(img: Image.Image) -> float:
-    g = img.convert("L")
-    w, h = g.size
-    max_side = 480
-    if max(w, h) > max_side:
-        scale = max_side / max(w, h)
-        g = g.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.BILINEAR)
-
-    arr = np.asarray(g, dtype=np.float32) / 255.0
-    row = arr.mean(axis=1)
-    col = arr.mean(axis=0)
-    return float(row.var() - col.var())
-
-def normalize_camera_orientation_mobile(img: Image.Image) -> Image.Image:
-    try:
-        score0 = _projection_score(img)
-        img90 = img.rotate(270, expand=True)  # 90° CW
-        score90 = _projection_score(img90)
-        if score90 > score0:
-            return img90
-        return img
-    except Exception:
-        return img
-
-def prepare_for_storage(b: bytes, mime: str | None, source: str) -> tuple[bytes, str | None, str]:
-    try:
-        img = _open_img_safe(b)
-        if source == "camera" and IS_MOBILE:
-            img = normalize_camera_orientation_mobile(img)
-
-        png_bytes = _to_png_bytes(img)
-        return png_bytes, "image/png", ".png"
-    except Exception:
-        return b, mime, _guess_suffix(mime)
-
-def normalize_for_preview(b: bytes, source: str) -> Image.Image | None:
-    try:
-        img = _open_img_safe(b)
-        if source == "camera" and IS_MOBILE:
-            img = normalize_camera_orientation_mobile(img)
-        return img
-    except Exception:
-        return None
 
 # ----------------------------------------------------
 # ONEDRIVE / GRAPH HELPERS
@@ -491,6 +398,12 @@ def upload_small_file_to_folder(folder_item_id: str, filename: str, file_bytes: 
     r = requests.put(url, headers=graph_headers_binary(mime_type), data=file_bytes, timeout=180)
     r.raise_for_status()
 
+# ----------------------------------------------------
+# DUPLICATE AVOIDANCE
+# ----------------------------------------------------
+def sha256_bytes(b: bytes) -> str:
+    return hashlib.sha256(b).hexdigest()
+
 def list_existing_hashes(folder_item_id: str, max_pages: int = 10) -> set[str]:
     hashes = set()
     url = f"{drive_base_url()}/items/{folder_item_id}/children?$select=name&$top=200"
@@ -510,7 +423,7 @@ def list_existing_hashes(folder_item_id: str, max_pages: int = 10) -> set[str]:
     return hashes
 
 # ----------------------------------------------------
-# PDF BUILDER (LETTER + no-upscale)
+# PDF BUILDER (Letter size; per-image page orientation; high quality)
 # ----------------------------------------------------
 def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
     if not image_bytes_list:
@@ -519,10 +432,9 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
     out = io.BytesIO()
     c = canvas.Canvas(out, pageCompression=0)
 
-    margin = 10 * mm
-
     for b in image_bytes_list:
-        img = _open_img_safe(b)
+        img = Image.open(io.BytesIO(b))
+        img = ImageOps.exif_transpose(img)
 
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
@@ -530,27 +442,26 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
             img = img.convert("RGB")
 
         w_px, h_px = img.size
+        is_landscape = w_px >= h_px
 
-        if w_px >= h_px:
-            page_w, page_h = landscape(letter)
-        else:
-            page_w, page_h = portrait(letter)
+        page_w, page_h = (landscape(letter) if is_landscape else letter)
+        c.setPageSize((page_w, page_h))
 
+        # Lossless embedding (PNG) to avoid recompress artifacts
         png_buf = io.BytesIO()
         img.save(png_buf, format="PNG", optimize=False)
         png_buf.seek(0)
 
-        max_w = page_w - 2 * margin
-        max_h = page_h - 2 * margin
-        scale = min(max_w / w_px, max_h / h_px, 1.0)  # never upscale
+        margin = 18  # small margin
+        avail_w = page_w - 2 * margin
+        avail_h = page_h - 2 * margin
 
+        scale = min(avail_w / w_px, avail_h / h_px)
         draw_w = w_px * scale
         draw_h = h_px * scale
-
         x = (page_w - draw_w) / 2
         y = (page_h - draw_h) / 2
 
-        c.setPageSize((page_w, page_h))
         c.drawImage(ImageReader(png_buf), x, y, width=draw_w, height=draw_h, mask="auto")
         c.showPage()
 
@@ -577,6 +488,23 @@ if "final_screen" not in st.session_state:
     st.session_state.final_screen = False
 if "last_screen" not in st.session_state:
     st.session_state.last_screen = ""
+
+def _guess_suffix(mime: str | None, fallback_name: str | None = None) -> str:
+    if fallback_name:
+        s = Path(fallback_name).suffix
+        if s:
+            return s.lower()
+
+    if not mime:
+        return ".jpg"
+    m = mime.lower()
+    if "png" in m:
+        return ".png"
+    if "heic" in m or "heif" in m:
+        return ".heic"
+    if "jpeg" in m or "jpg" in m:
+        return ".jpg"
+    return ".jpg"
 
 def reset_flow():
     st.session_state.camera_photos = []
@@ -722,7 +650,7 @@ if not is_valid_folio(folio):
 
 st.success(f"Folio válido: **{folio}**")
 
-# INE guide
+# ✅ INE photo guide (ONLY on upload/take-photo screen)
 instrucciones_path = Path(__file__).parent / "ineCorrecto.jpeg"
 if not instrucciones_path.exists():
     instrucciones_path = Path("/mnt/data/ineCorrecto.jpeg")
@@ -746,6 +674,7 @@ uploaded_files = st.file_uploader(
     key="gallery_uploader",
 )
 
+# ✅ Only overwrite gallery state when there are actual files
 if uploaded_files is not None and len(uploaded_files) > 0:
     new_list = []
     for f in uploaded_files:
@@ -762,20 +691,17 @@ if st.session_state.gallery_photos:
 st.markdown("---")
 
 # --------------------
-# CAMERA (MULTI) - ✅ friendlier for landscape via columns
+# CAMERA (MULTI)
 # --------------------
 st.subheader("📸 Tomar fotos con la cámara (puedes tomar varias)")
+camera_photo = st.camera_input("Toma una foto y luego pulsa **Agregar foto tomada**", key="camera_input")
 
-# Big preview left, actions right (helps a lot in landscape)
-cam_col, act_col = st.columns([3, 2], vertical_alignment="top")
-
-with cam_col:
-    camera_photo = st.camera_input("Toma una foto", key="camera_input")
-
-with act_col:
-    st.caption("Después de tomarla, pulsa **Agregar foto tomada**.")
+c1, c2, c3 = st.columns([1, 1, 1])
+with c1:
     add_cam = st.button("➕ Agregar foto tomada", use_container_width=True)
+with c2:
     clear_cam = st.button("🗑️ Quitar fotos tomadas", use_container_width=True)
+with c3:
     st.metric("Fotos tomadas", len(st.session_state.camera_photos))
 
 if clear_cam:
@@ -797,16 +723,12 @@ if st.session_state.camera_photos:
     with st.expander("Ver vista previa de fotos tomadas"):
         cols = st.columns(3)
         for i, p in enumerate(st.session_state.camera_photos, start=1):
-            img_prev = normalize_for_preview(p["bytes"], source="camera")
-            if img_prev is not None:
-                cols[(i - 1) % 3].image(img_prev, caption=f"Foto tomada #{i}", use_container_width=True)
-            else:
-                cols[(i - 1) % 3].image(p["bytes"], caption=f"Foto tomada #{i}", use_container_width=True)
+            cols[(i - 1) % 3].image(p["bytes"], caption=f"Foto tomada #{i}", use_container_width=True)
 
 st.markdown("---")
 
 # --------------------
-# UPLOAD BUTTON (ONLY bar + % + legend)
+# UPLOAD BUTTON (ONLY bar + % + legend: Subiendo/Finalizado)
 # --------------------
 if st.button("💾 Subir fotos", type="primary"):
     if (not st.session_state.gallery_photos) and (not st.session_state.camera_photos):
@@ -817,7 +739,7 @@ if st.button("💾 Subir fotos", type="primary"):
     camera_items = st.session_state.camera_photos
 
     total_selected = len(gallery_items) + len(camera_items)
-    total_steps = max(1, total_selected) + 2
+    total_steps = max(1, total_selected) + 2  # folder prep + photos + PDF stage
     done_steps = 0
 
     legend = st.empty()
@@ -841,20 +763,20 @@ if st.button("💾 Subir fotos", type="primary"):
         existing_hash_prefixes = list_existing_hashes(target_folder_id)
         seen_this_run: set[str] = set()
 
-        pdf_images_bytes: list[bytes] = []
+        previews: list[bytes] = [g["bytes"] for g in gallery_items] + [p["bytes"] for p in camera_items]
+
         counter = {"n": 0}
         flags = {"new_anything": False}
 
-        def maybe_upload_image(original_bytes: bytes, store_bytes: bytes, store_mime: str | None, source: str, store_suffix: str) -> bool:
-            h12 = sha256_bytes(original_bytes)[:12]
+        def maybe_upload_image(b: bytes, mime: str | None, source: str, suffix: str) -> bool:
+            h12 = sha256_bytes(b)[:12]
             if h12 in existing_hash_prefixes or h12 in seen_this_run:
                 return False
 
             seen_this_run.add(h12)
-
             ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            filename = f"{folio}_{source}_{ts}__sha256_{h12}{store_suffix}"
-            upload_small_file_to_folder(target_folder_id, filename, store_bytes, store_mime)
+            filename = f"{folio}_{source}_{ts}__sha256_{h12}{suffix}"
+            upload_small_file_to_folder(target_folder_id, filename, b, mime)
 
             existing_hash_prefixes.add(h12)
             counter["n"] += 1
@@ -862,16 +784,12 @@ if st.button("💾 Subir fotos", type="primary"):
             return True
 
         for g in gallery_items:
-            store_b, store_m, store_s = prepare_for_storage(g["bytes"], g.get("mime"), "upload")
-            pdf_images_bytes.append(store_b)
-            maybe_upload_image(g["bytes"], store_b, store_m, "upload", store_s)
+            maybe_upload_image(g["bytes"], g["mime"], "upload", g["suffix"])
             done_steps += 1
             _set_progress()
 
         for p in camera_items:
-            store_b, store_m, store_s = prepare_for_storage(p["bytes"], p.get("mime"), "camera")
-            pdf_images_bytes.append(store_b)
-            maybe_upload_image(p["bytes"], store_b, store_m, "camera", store_s)
+            maybe_upload_image(p["bytes"], p["mime"], "camera", p["suffix"])
             done_steps += 1
             _set_progress()
 
@@ -880,7 +798,7 @@ if st.button("💾 Subir fotos", type="primary"):
 
         if flags["new_anything"]:
             try:
-                pdf_bytes = build_pdf_from_images_high_quality(pdf_images_bytes)
+                pdf_bytes = build_pdf_from_images_high_quality(previews)
                 ts_pdf = datetime.now().strftime("%Y%m%d_%H%M%S")
                 pdf_name = f"{folio}_fotos_{ts_pdf}.pdf"
                 upload_small_file_to_folder(target_folder_id, pdf_name, pdf_bytes, "application/pdf")
@@ -903,7 +821,7 @@ if st.button("💾 Subir fotos", type="primary"):
         st.session_state.uploaded_ok = True
         st.session_state.uploaded_folio = folio
         st.session_state.uploaded_total = counter["n"]
-        st.session_state.uploaded_previews = pdf_images_bytes
+        st.session_state.uploaded_previews = previews
         st.rerun()
 
     except requests.HTTPError as e:
