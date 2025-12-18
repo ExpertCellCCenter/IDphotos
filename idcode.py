@@ -939,3 +939,4 @@ if st.button("💾 Subir fotos", type="primary"):
     except Exception as e:
         st.error("❌ Error inesperado.")
         st.code(str(e))
+
