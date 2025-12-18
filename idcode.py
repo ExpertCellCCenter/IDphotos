@@ -81,70 +81,75 @@ input, textarea {
 }
 
 /* -----------------------------
-   CAMERA: FIXED SMALLER WIDGET (STOP FULL-WIDTH ON LANDSCAPE)
-   Key: limit the WHOLE stCameraInput width with max-width + center
+   ✅ CAMERA SHELL: HARD WIDTH LOCK
+   This wrapper is what prevents the camera from expanding in landscape.
 ------------------------------ */
-div[data-testid="stCameraInput"]{
+.camera-shell{
+  width: min(480px, 100%) !important;
+  max-width: 480px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* On landscape phones/tablets: keep it SMALL and STABLE (does NOT expand full width) */
+@media (orientation: landscape) and (max-width: 1400px){
+  .camera-shell{
+    width: min(480px, 92vw) !important;   /* fixed cap */
+    max-width: 480px !important;
+  }
+}
+
+/* Make Streamlit camera widget obey the wrapper */
+.camera-shell [data-testid="stCameraInput"]{
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+}
+
+/* Camera widget styling */
+.camera-shell [data-testid="stCameraInput"]{
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.20) !important;
   border-radius: 14px !important;
   padding: 10px 12px !important;
-
-  /* ✅ THIS is what stops it from going huge in landscape */
-  max-width: 520px !important;
-  width: 100% !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-
-  /* Default preview height (portrait) */
-  --cam-preview-h: 320px;
+  --cam-preview-h: 320px; /* portrait default */
 }
 
-/* keep everything inside centered */
-div[data-testid="stCameraInput"] > div{
-  width: 100% !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
+/* Landscape: shorter preview so buttons are always visible */
+@media (orientation: landscape) and (max-width: 1400px){
+  .camera-shell [data-testid="stCameraInput"]{
+    --cam-preview-h: 200px;
+    padding: 8px 10px !important;
+  }
 }
 
 /* Video / preview area */
-div[data-testid="stCameraInput"] video,
-div[data-testid="stCameraInput"] img,
-div[data-testid="stCameraInput"] canvas{
+.camera-shell [data-testid="stCameraInput"] video,
+.camera-shell [data-testid="stCameraInput"] img,
+.camera-shell [data-testid="stCameraInput"] canvas{
   width: 100% !important;
   height: var(--cam-preview-h) !important;
   max-height: var(--cam-preview-h) !important;
   min-height: var(--cam-preview-h) !important;
-
   object-fit: contain !important;
   object-position: center center !important;
-
   border-radius: 12px !important;
   display: block !important;
   margin: 0 auto !important;
-  background: #111827 !important;  /* black bars */
+  background: #111827 !important;
 }
 
-/* Buttons inside camera */
-div[data-testid="stCameraInput"] *{ color: #0B0F14 !important; }
-div[data-testid="stCameraInput"] button{
+/* Camera buttons */
+.camera-shell [data-testid="stCameraInput"] *{ color: #0B0F14 !important; }
+.camera-shell [data-testid="stCameraInput"] button{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 12px !important;
   font-weight: 800 !important;
 }
-div[data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
-div[data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
-
-/* ✅ Landscape phones/tablets: keep the widget SAME WIDTH and make preview shorter */
-@media (orientation: landscape) and (max-width: 1200px){
-  div[data-testid="stCameraInput"]{
-    max-width: 520px !important;     /* keep stable */
-    --cam-preview-h: 200px;          /* smaller so user can see buttons */
-    padding: 8px 10px !important;
-  }
-}
+.camera-shell [data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
+.camera-shell [data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
 
 /* Buttons */
 .stButton > button {
@@ -165,7 +170,7 @@ div[data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !importa
 }
 
 /* -----------------------------
-   EXPANDERS: blue header like buttons
+   EXPANDERS
 ------------------------------ */
 div[data-testid="stExpander"] details{
   background: #FFFFFF !important;
@@ -420,7 +425,6 @@ def build_pdf_from_images_letter_high_quality(image_bytes_list: list[bytes]) -> 
 
     out = io.BytesIO()
     c = canvas.Canvas(out, pagesize=letter, pageCompression=0)
-
     page_w, page_h = letter
 
     for b in image_bytes_list:
@@ -433,7 +437,6 @@ def build_pdf_from_images_letter_high_quality(image_bytes_list: list[bytes]) -> 
             img = img.convert("RGB")
 
         w_px, h_px = img.size
-
         scale = min(page_w / w_px, page_h / h_px)
         draw_w = w_px * scale
         draw_h = h_px * scale
@@ -477,7 +480,6 @@ def _guess_suffix(mime: str | None, fallback_name: str | None = None) -> str:
         s = Path(fallback_name).suffix
         if s:
             return s.lower()
-
     if not mime:
         return ".jpg"
     m = mime.lower()
@@ -673,10 +675,13 @@ if st.session_state.gallery_photos:
 st.markdown("---")
 
 # --------------------
-# CAMERA (MULTI)
+# CAMERA (MULTI)  ✅ WRAPPED TO LOCK WIDTH
 # --------------------
 st.subheader("📸 Tomar fotos con la cámara (puedes tomar varias)")
+
+st.markdown('<div class="camera-shell">', unsafe_allow_html=True)
 camera_photo = st.camera_input("Toma una foto y luego pulsa **Agregar foto tomada**", key="camera_input")
+st.markdown("</div>", unsafe_allow_html=True)
 
 c1, c2, c3 = st.columns([1, 1, 1])
 with c1:
@@ -710,7 +715,7 @@ if st.session_state.camera_photos:
 st.markdown("---")
 
 # --------------------
-# UPLOAD BUTTON (ONLY bar + % + legend: Subiendo/Finalizado)
+# UPLOAD BUTTON (bar + % + legend)
 # --------------------
 if st.button("💾 Subir fotos", type="primary"):
     if (not st.session_state.gallery_photos) and (not st.session_state.camera_photos):
