@@ -8,7 +8,7 @@ from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
-from PIL import Image
+from PIL import Image, ImageOps
 
 # High-quality PDF (no downscale / no recompress artifacts)
 from reportlab.pdfgen import canvas
@@ -296,7 +296,6 @@ def scroll_to_top():
               try { window.parent.scrollTo(0,0); } catch(e) {}
             }
 
-            // run a few times (mobile sometimes needs a delay after rerender)
             run();
             setTimeout(run, 50);
             setTimeout(run, 250);
@@ -344,10 +343,14 @@ def render_header():
 # ----------------------------------------------------
 # FOLIO FORMAT
 # ----------------------------------------------------
+# ✅ FIXED REGEX (was wrongly r"^\\d...")
 FOLIO_PATTERN = re.compile(r"^\d{6}-[A-Z0-9]{6}$")
 
 def normalize_folio(raw: str) -> str:
-    return (raw or "").strip().upper()
+    s = (raw or "").strip().upper()
+    # ✅ Mobile keyboards sometimes insert en-dash/em-dash
+    s = s.replace("–", "-").replace("—", "-")
+    return s
 
 def is_valid_folio(folio: str) -> bool:
     return bool(FOLIO_PATTERN.match(folio))
@@ -450,8 +453,8 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
 
     for b in image_bytes_list:
         img = Image.open(io.BytesIO(b))
+        img = ImageOps.exif_transpose(img)
 
-        # Ensure RGB
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
         elif img.mode != "RGB":
@@ -459,12 +462,10 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
 
         w_px, h_px = img.size
 
-        # Lossless PNG embedding to avoid JPEG recompression
         png_buf = io.BytesIO()
         img.save(png_buf, format="PNG", optimize=False)
         png_buf.seek(0)
 
-        # Page size = image px dimensions (1 px = 1 pt)
         c.setPageSize((w_px, h_px))
         c.drawImage(ImageReader(png_buf), 0, 0, width=w_px, height=h_px, mask="auto")
         c.showPage()
@@ -477,9 +478,9 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
 # SESSION STATE
 # ----------------------------------------------------
 if "camera_photos" not in st.session_state:
-    st.session_state.camera_photos = []  # list[dict{bytes,mime,suffix}]
+    st.session_state.camera_photos = []
 if "gallery_photos" not in st.session_state:
-    st.session_state.gallery_photos = []  # list[dict{bytes,mime,suffix,name}]
+    st.session_state.gallery_photos = []
 if "uploaded_ok" not in st.session_state:
     st.session_state.uploaded_ok = False
 if "uploaded_folio" not in st.session_state:
@@ -530,15 +531,11 @@ def _current_screen() -> str:
 # FINAL SCREEN
 # ----------------------------------------------------
 if st.session_state.final_screen:
-    if st.session_state.last_screen != _current_screen():
-        scroll_to_top()
-        st.session_state.last_screen = _current_screen()
+    scroll_to_top()
+    st.session_state.last_screen = _current_screen()
 
     render_header()
-
-    # extra scroll call AFTER header render (helps on mobile)
-    if st.session_state.last_screen == "final":
-        scroll_to_top()
+    scroll_to_top()
 
     st.markdown(
         """
@@ -583,10 +580,7 @@ if st.session_state.uploaded_ok:
     previews = st.session_state.uploaded_previews or []
 
     render_header()
-
-    # extra scroll call AFTER header render (helps on mobile)
-    if st.session_state.last_screen == "success":
-        scroll_to_top()
+    scroll_to_top()
 
     st.markdown(
         f"""
@@ -617,7 +611,6 @@ if st.session_state.uploaded_ok:
         unsafe_allow_html=True,
     )
 
-    # ✅ Expanded preview section on the second screen
     with st.expander("📷 Ver fotos subidas", expanded=True):
         if previews:
             cols = st.columns(4)
@@ -647,10 +640,7 @@ if st.session_state.last_screen != _current_screen():
     st.session_state.last_screen = _current_screen()
 
 render_header()
-
-# extra scroll call AFTER header render (helps on mobile)
-if st.session_state.last_screen == "main":
-    scroll_to_top()
+scroll_to_top()
 
 folio_input = st.text_input("Folio de la cotización", placeholder="Ej. 251215-0FF480")
 folio = normalize_folio(folio_input)
@@ -689,18 +679,13 @@ uploaded_files = st.file_uploader(
     key="gallery_uploader",
 )
 
-# Persist gallery files into session_state (this fixes "only camera uploads")
-if uploaded_files is not None:
+# ✅ FIX: Only overwrite gallery state when there are actual files
+if uploaded_files is not None and len(uploaded_files) > 0:
     new_list = []
     for f in uploaded_files:
         b = f.getvalue()
         new_list.append(
-            {
-                "bytes": b,
-                "mime": f.type,
-                "suffix": _guess_suffix(f.type, f.name),
-                "name": f.name,
-            }
+            {"bytes": b, "mime": f.type, "suffix": _guess_suffix(f.type, f.name), "name": f.name}
         )
     st.session_state.gallery_photos = new_list
 
@@ -757,8 +742,11 @@ if st.button("💾 Subir fotos", type="primary"):
         st.warning("No seleccionaste fotos de galería ni agregaste fotos tomadas.")
         st.stop()
 
-    total_selected = len(st.session_state.gallery_photos) + len(st.session_state.camera_photos)
-    total_steps = max(1, total_selected) + 2  # 1: folder prep + photos + 1: PDF stage
+    gallery_items = st.session_state.gallery_photos
+    camera_items = st.session_state.camera_photos
+
+    total_selected = len(gallery_items) + len(camera_items)
+    total_steps = max(1, total_selected) + 2
     done_steps = 0
 
     legend = st.empty()
@@ -782,13 +770,10 @@ if st.button("💾 Subir fotos", type="primary"):
         existing_hash_prefixes = list_existing_hashes(target_folder_id)
         seen_this_run: set[str] = set()
 
-        previews: list[bytes] = (
-            [g["bytes"] for g in st.session_state.gallery_photos]
-            + [p["bytes"] for p in st.session_state.camera_photos]
-        )
+        previews: list[bytes] = [g["bytes"] for g in gallery_items] + [p["bytes"] for p in camera_items]
 
-        new_photo_bytes_for_pdf: list[bytes] = []
         counter = {"n": 0}
+        flags = {"new_anything": False}
 
         def maybe_upload_image(b: bytes, mime: str | None, source: str, suffix: str) -> bool:
             h12 = sha256_bytes(b)[:12]
@@ -803,28 +788,25 @@ if st.button("💾 Subir fotos", type="primary"):
 
             existing_hash_prefixes.add(h12)
             counter["n"] += 1
-            new_photo_bytes_for_pdf.append(b)
+            flags["new_anything"] = True
             return True
 
-        # Upload gallery photos
-        for g in st.session_state.gallery_photos:
+        for g in gallery_items:
             maybe_upload_image(g["bytes"], g["mime"], "upload", g["suffix"])
             done_steps += 1
             _set_progress()
 
-        # Upload camera photos
-        for p in st.session_state.camera_photos:
+        for p in camera_items:
             maybe_upload_image(p["bytes"], p["mime"], "camera", p["suffix"])
             done_steps += 1
             _set_progress()
 
-        # PDF step (counts for progress)
         done_steps += 1
         _set_progress()
 
-        if new_photo_bytes_for_pdf:
+        if flags["new_anything"]:
             try:
-                pdf_bytes = build_pdf_from_images_high_quality(new_photo_bytes_for_pdf)
+                pdf_bytes = build_pdf_from_images_high_quality(previews)
                 ts_pdf = datetime.now().strftime("%Y%m%d_%H%M%S")
                 pdf_name = f"{folio}_fotos_{ts_pdf}.pdf"
                 upload_small_file_to_folder(target_folder_id, pdf_name, pdf_bytes, "application/pdf")
@@ -841,15 +823,13 @@ if st.button("💾 Subir fotos", type="primary"):
         pct_line.markdown("100%")
         legend.markdown("**Finalizado**")
 
-        # Clear stacks after upload
         st.session_state.camera_photos = []
         st.session_state.gallery_photos = []
 
-        # Success screen
         st.session_state.uploaded_ok = True
         st.session_state.uploaded_folio = folio
-        st.session_state.uploaded_total = counter["n"]  # new files uploaded (dedup)
-        st.session_state.uploaded_previews = previews    # show what user selected/took
+        st.session_state.uploaded_total = counter["n"]
+        st.session_state.uploaded_previews = previews
         st.rerun()
 
     except requests.HTTPError as e:
