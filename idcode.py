@@ -8,8 +8,7 @@ from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
-import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageChops, ImageStat
 
 # High-quality PDF (no downscale / no recompress artifacts)
 from reportlab.pdfgen import canvas
@@ -38,15 +37,25 @@ st.markdown(
 header[data-testid="stHeader"] {display:none !important;}
 #MainMenu {visibility: hidden !important;}
 footer {visibility: hidden !important;}
+/* Sometimes Streamlit injects extra padding for the hidden header */
 div[data-testid="stAppViewContainer"] {padding-top: 0rem !important;}
 
 /* Force a light-looking app */
-.stApp { background: #ffffff !important; color: #0B0F14 !important; }
-[data-testid="stAppViewContainer"]{ background: #ffffff !important; }
-section[data-testid="stSidebar"]{ background: #F5F7FA !important; }
+.stApp {
+  background: #ffffff !important;
+  color: #0B0F14 !important;
+}
+[data-testid="stAppViewContainer"]{
+  background: #ffffff !important;
+}
+section[data-testid="stSidebar"]{
+  background: #F5F7FA !important;
+}
 
 /* Text */
-h1, h2, h3, h4, h5, h6, p, li, label, span, div { color: #0B0F14 !important; }
+h1, h2, h3, h4, h5, h6, p, li, label, span, div {
+  color: #0B0F14 !important;
+}
 
 /* Inputs */
 input, textarea {
@@ -56,13 +65,17 @@ input, textarea {
   border-radius: 10px !important;
 }
 
-/* FILE UPLOADER */
+/* -----------------------------
+   FILE UPLOADER: theme-safe
+------------------------------ */
 [data-testid="stFileUploaderDropzone"]{
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.25) !important;
   border-radius: 14px !important;
 }
-[data-testid="stFileUploaderDropzone"] *{ color: #0B0F14 !important; }
+[data-testid="stFileUploaderDropzone"] *{
+  color: #0B0F14 !important;
+}
 [data-testid="stFileUploaderDropzone"] button{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
@@ -70,21 +83,31 @@ input, textarea {
   border-radius: 12px !important;
   font-weight: 800 !important;
 }
-[data-testid="stFileUploaderDropzone"] button *{ color: #FFFFFF !important; }
-[data-testid="stFileUploaderDropzone"] button:hover{ filter: brightness(0.95) !important; }
-[data-testid="stFileUploaderDropzone"] small{ color: rgba(11,15,20,0.70) !important; }
+[data-testid="stFileUploaderDropzone"] button *{
+  color: #FFFFFF !important;
+}
+[data-testid="stFileUploaderDropzone"] button:hover{
+  filter: brightness(0.95) !important;
+}
+[data-testid="stFileUploaderDropzone"] small{
+  color: rgba(11,15,20,0.70) !important;
+}
 [data-testid="stFileUploaderDropzone"][data-active="true"]{
   background: rgba(0,168,224,0.08) !important;
   border-color: rgba(0,168,224,0.45) !important;
 }
 
-/* CAMERA */
+/* -----------------------------
+   CAMERA: theme-safe Take Photo
+------------------------------ */
 [data-testid="stCameraInput"]{
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.20) !important;
   border-radius: 14px !important;
 }
-[data-testid="stCameraInput"] *{ color: #0B0F14 !important; }
+[data-testid="stCameraInput"] *{
+  color: #0B0F14 !important;
+}
 [data-testid="stCameraInput"] button{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
@@ -92,8 +115,12 @@ input, textarea {
   border-radius: 12px !important;
   font-weight: 800 !important;
 }
-[data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
-[data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
+[data-testid="stCameraInput"] button *{
+  color: #FFFFFF !important;
+}
+[data-testid="stCameraInput"] button:hover{
+  filter: brightness(0.95) !important;
+}
 
 /* Buttons */
 .stButton > button {
@@ -104,7 +131,9 @@ input, textarea {
   padding: 0.55rem 1rem !important;
   font-weight: 800 !important;
 }
-.stButton > button:hover{ filter: brightness(0.95); }
+.stButton > button:hover{
+  filter: brightness(0.95);
+}
 
 /* Alerts */
 [data-testid="stAlert"]{
@@ -113,7 +142,9 @@ input, textarea {
   color: #0B0F14 !important;
 }
 
-/* EXPANDERS: blue header like buttons */
+/* -----------------------------
+   EXPANDERS: blue header like buttons
+------------------------------ */
 div[data-testid="stExpander"] details{
   background: #FFFFFF !important;
   border: 1px solid rgba(0,0,0,0.08) !important;
@@ -129,19 +160,42 @@ div[data-testid="stExpander"] details > summary{
   border-radius: 14px !important;
   margin: 0 !important;
 }
-div[data-testid="stExpander"] details > summary *{ color: #FFFFFF !important; }
+div[data-testid="stExpander"] details > summary *{
+  color: #FFFFFF !important;
+}
 div[data-testid="stExpander"] details[open] > summary{
   border-bottom-left-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
   border-bottom: 1px solid rgba(0,0,0,0.08) !important;
 }
-div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
+div[data-testid="stExpander"] details > div{
+  padding: 10px 12px !important;
+}
 
 /* Header */
-.brand-header{ display:flex; align-items:center; gap:14px; padding: 6px 0 12px 0; }
-.brand-title{ font-size: 1.6rem; font-weight: 900; line-height: 1.15; margin: 0; }
-.brand-subtitle{ margin: 4px 0 0 0; opacity: 0.85; font-size: 0.95rem; }
-.hr-soft{ border: none; height: 1px; background: rgba(0,0,0,0.08); margin: 10px 0 16px 0; }
+.brand-header{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding: 6px 0 12px 0;
+}
+.brand-title{
+  font-size: 1.6rem;
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 0;
+}
+.brand-subtitle{
+  margin: 4px 0 0 0;
+  opacity: 0.85;
+  font-size: 0.95rem;
+}
+.hr-soft{
+  border: none;
+  height: 1px;
+  background: rgba(0,0,0,0.08);
+  margin: 10px 0 16px 0;
+}
 
 /* Cards */
 .success-wrap{
@@ -151,8 +205,17 @@ div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
   padding: 22px 20px;
   box-shadow: 0 10px 26px rgba(0,0,0,0.08);
 }
-.success-title{ font-size: 1.6rem; font-weight: 800; line-height: 1.2; margin: 0 0 10px 0; }
-.success-sub{ font-size: 1rem; opacity: 0.92; margin: 0 0 14px 0; }
+.success-title{
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0 0 10px 0;
+}
+.success-sub{
+  font-size: 1rem;
+  opacity: 0.92;
+  margin: 0 0 14px 0;
+}
 .success-chip{
   display: inline-block;
   padding: 7px 12px;
@@ -178,10 +241,26 @@ div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
   border-radius: 14px;
   padding: 12px 14px;
 }
-.success-k{ font-size: 0.85rem; opacity: 0.85; margin: 0; }
-.success-v{ font-size: 1.15rem; font-weight: 800; margin: 2px 0 0 0; }
-.preview-wrap{ margin-top: 14px; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 14px; }
-.preview-title{ font-weight: 800; margin-bottom: 10px; opacity: 0.95; }
+.success-k{
+  font-size: 0.85rem;
+  opacity: 0.85;
+  margin: 0;
+}
+.success-v{
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 2px 0 0 0;
+}
+.preview-wrap{
+  margin-top: 14px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  padding-top: 14px;
+}
+.preview-title{
+  font-weight: 800;
+  margin-bottom: 10px;
+  opacity: 0.95;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -191,7 +270,7 @@ div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# SCROLL TO TOP ON SCREEN CHANGE (mobile)
+# SCROLL TO TOP ON SCREEN CHANGE (more robust for mobile)
 # ----------------------------------------------------
 def scroll_to_top():
     components.html(
@@ -209,12 +288,14 @@ def scroll_to_top():
               try { doc.querySelector('div[data-testid="stMainBlockContainer"]')?.scrollTo(0,0); } catch(e) {}
               try { doc.querySelector('div[data-testid="stMainBlockContainer"]')?.scrollTop = 0; } catch(e) {}
             }
+
             function run() {
               try { window.scrollTo(0,0); } catch(e) {}
               try { doScroll(document); } catch(e) {}
               try { doScroll(window.parent.document); } catch(e) {}
               try { window.parent.scrollTo(0,0); } catch(e) {}
             }
+
             run();
             setTimeout(run, 50);
             setTimeout(run, 250);
@@ -273,102 +354,98 @@ def is_valid_folio(folio: str) -> bool:
     return bool(FOLIO_PATTERN.match(folio))
 
 # ----------------------------------------------------
-# ORIENTATION FIX (EXIF + heuristic for documents)
+# CAMERA ORIENTATION FIX (does NOT break desktop)
+# - chooses between ORIGINAL vs EXIF-transposed using a lightweight score,
+# - then re-encodes WITHOUT EXIF so OneDrive won't rotate it.
 # ----------------------------------------------------
-def _edge_direction_score(img: Image.Image) -> float:
+def _doc_upright_score(img: Image.Image) -> float:
     """
-    Score = horizontal-edge-energy / vertical-edge-energy.
-    Upright documents typically have stronger horizontal structure (text lines).
+    Score based on "horizontal structure" typical of documents/text.
+    Higher is better. Very lightweight and dependency-free.
     """
     g = img.convert("L")
+
     w, h = g.size
     max_side = 900
-    scale = min(1.0, max_side / max(w, h))
-    if scale < 1.0:
+    if max(w, h) > max_side:
+        scale = max_side / float(max(w, h))
         g = g.resize((max(1, int(w * scale)), max(1, int(h * scale))))
-    a = np.asarray(g, dtype=np.int16)
 
-    if a.shape[0] < 3 or a.shape[1] < 3:
-        return 1.0
+    w, h = g.size
+    if w < 3 or h < 3:
+        return 0.0
 
-    gx = np.abs(a[:, 1:] - a[:, :-1]).sum()   # vertical edges
-    gy = np.abs(a[1:, :] - a[:-1, :]).sum()   # horizontal edges
-    return float((gy + 1e-6) / (gx + 1e-6))
+    # Differences (no wrap) to estimate gradient energy
+    gx = ImageChops.difference(g.crop((1, 0, w, h)), g.crop((0, 0, w - 1, h)))
+    gy = ImageChops.difference(g.crop((0, 1, w, h)), g.crop((0, 0, w, h - 1)))
 
-def auto_orient_image(img: Image.Image) -> Image.Image:
+    sx = float(ImageStat.Stat(gx).sum[0])  # vertical-edge energy
+    sy = float(ImageStat.Stat(gy).sum[0])  # horizontal-edge energy
+    return (sy + 1.0) / (sx + 1.0)
+
+def _choose_best_orientation(original: Image.Image) -> Image.Image:
     """
-    1) Apply EXIF orientation if present.
-    2) If EXIF is missing/wrong, choose between 0/90/270 degrees based on document-like edge direction.
-       Only rotate if improvement is significant to avoid harming normal photos.
+    Compare original vs exif_transpose. Only accept EXIF rotation if it clearly improves the doc-score.
+    This prevents desktop photos from being incorrectly rotated.
     """
-    base = ImageOps.exif_transpose(img)
+    ex = ImageOps.exif_transpose(original)
 
-    s0 = _edge_direction_score(base)
-    r90 = base.rotate(90, expand=True)
-    r270 = base.rotate(270, expand=True)
-    s90 = _edge_direction_score(r90)
-    s270 = _edge_direction_score(r270)
+    # If nothing changed, keep original
+    if ex.size == original.size:
+        # exif_transpose may still return a new object but same pixels/orientation;
+        # keep original to be conservative.
+        return original
 
-    best = base
-    best_s = s0
-    if s90 > best_s:
-        best, best_s = r90, s90
-    if s270 > best_s:
-        best, best_s = r270, s270
+    s0 = _doc_upright_score(original)
+    s1 = _doc_upright_score(ex)
 
-    # rotate only if clearly better (documents sideways usually improve a lot)
-    if best is not base and best_s > s0 * 1.12:
-        return best
-    return base
+    # Only rotate if clearly better
+    if s1 > s0 * 1.10:
+        return ex
+    return original
 
-def normalize_image_bytes_for_upload(b: bytes, mime: str | None, fallback_name: str | None = None) -> tuple[bytes, str | None, str]:
+def normalize_camera_bytes(b: bytes, mime: str | None) -> tuple[bytes, str | None, str]:
     """
-    Returns (bytes_fixed, mime_fixed, suffix_fixed).
-    Keeps PNG as PNG; everything else becomes JPEG to avoid huge PNGs.
+    Fix orientation for CAMERA shots only, and strip EXIF by re-encoding.
+    Returns (bytes_fixed, mime_fixed, suffix_fixed)
     """
     try:
         img = Image.open(io.BytesIO(b))
-        img = auto_orient_image(img)
+        img = _choose_best_orientation(img)
 
-        # Decide output
         m = (mime or "").lower()
-        suffix = ""
-        if fallback_name:
-            suffix = Path(fallback_name).suffix.lower()
 
-        want_png = ("png" in m) or (suffix == ".png")
-
-        if want_png:
+        # Preserve PNG if it's PNG (lossless)
+        if "png" in m:
             if img.mode not in ("RGB", "RGBA"):
                 img = img.convert("RGB")
             out = io.BytesIO()
-            img.save(out, format="PNG", optimize=False)
+            img.save(out, format="PNG", optimize=False)  # no EXIF here
             out.seek(0)
             return out.read(), "image/png", ".png"
 
-        # JPEG output (for jpg/jpeg/heic/heif/unknown)
+        # Otherwise encode JPEG (strips EXIF by default)
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
         elif img.mode != "RGB":
             img = img.convert("RGB")
 
         out = io.BytesIO()
-        img.save(out, format="JPEG", quality=95, subsampling=0, optimize=False)
+        img.save(out, format="JPEG", quality=95, subsampling=0, optimize=False)  # no exif=...
         out.seek(0)
         return out.read(), "image/jpeg", ".jpg"
 
     except Exception:
         # fallback: keep original
-        # suffix guess:
-        suf = ".jpg"
+        suffix = ".jpg"
         m = (mime or "").lower()
         if "png" in m:
-            suf = ".png"
-        elif "heic" in m or "heif" in m:
-            suf = ".heic"
+            suffix = ".png"
         elif "jpeg" in m or "jpg" in m:
-            suf = ".jpg"
-        return b, mime, suf
+            suffix = ".jpg"
+        elif "heic" in m or "heif" in m:
+            suffix = ".heic"
+        return b, mime, suffix
 
 # ----------------------------------------------------
 # ONEDRIVE / GRAPH HELPERS
@@ -468,9 +545,8 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
 
     for b in image_bytes_list:
         img = Image.open(io.BytesIO(b))
-        img = auto_orient_image(img)
+        img = ImageOps.exif_transpose(img)
 
-        # Ensure RGB
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
         elif img.mode != "RGB":
@@ -478,7 +554,6 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
 
         w_px, h_px = img.size
 
-        # Lossless PNG embedding to avoid JPEG recompression
         png_buf = io.BytesIO()
         img.save(png_buf, format="PNG", optimize=False)
         png_buf.seek(0)
@@ -696,7 +771,7 @@ uploaded_files = st.file_uploader(
     key="gallery_uploader",
 )
 
-# Only overwrite gallery state when there are actual files
+# ✅ Only overwrite gallery state when there are actual files
 if uploaded_files is not None and len(uploaded_files) > 0:
     new_list = []
     for f in uploaded_files:
@@ -763,7 +838,7 @@ if st.button("💾 Subir fotos", type="primary"):
     camera_items = st.session_state.camera_photos
 
     total_selected = len(gallery_items) + len(camera_items)
-    total_steps = max(1, total_selected) + 2  # folder + each photo + pdf stage
+    total_steps = max(1, total_selected) + 2
     done_steps = 0
 
     legend = st.empty()
@@ -787,51 +862,48 @@ if st.button("💾 Subir fotos", type="primary"):
         existing_hash_prefixes = list_existing_hashes(target_folder_id)
         seen_this_run: set[str] = set()
 
-        previews_fixed: list[bytes] = []
+        # Previews = gallery raw + camera normalized (so user sees exactly what was stored)
+        previews: list[bytes] = [g["bytes"] for g in gallery_items]
 
         counter = {"n": 0}
         flags = {"new_anything": False}
 
-        def maybe_upload_image(b_fixed: bytes, mime_fixed: str | None, source: str, suffix_fixed: str) -> bool:
-            h12 = sha256_bytes(b_fixed)[:12]
+        def maybe_upload_image(b: bytes, mime: str | None, source: str, suffix: str) -> bool:
+            h12 = sha256_bytes(b)[:12]
             if h12 in existing_hash_prefixes or h12 in seen_this_run:
                 return False
 
             seen_this_run.add(h12)
 
             ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            filename = f"{folio}_{source}_{ts}__sha256_{h12}{suffix_fixed}"
-            upload_small_file_to_folder(target_folder_id, filename, b_fixed, mime_fixed)
+            filename = f"{folio}_{source}_{ts}__sha256_{h12}{suffix}"
+            upload_small_file_to_folder(target_folder_id, filename, b, mime)
 
             existing_hash_prefixes.add(h12)
             counter["n"] += 1
             flags["new_anything"] = True
             return True
 
-        # Upload gallery photos (fixed orientation)
+        # Upload gallery photos (UNCHANGED)
         for g in gallery_items:
-            b_fixed, mime_fixed, suffix_fixed = normalize_image_bytes_for_upload(g["bytes"], g["mime"], g.get("name"))
-            previews_fixed.append(b_fixed)
-            maybe_upload_image(b_fixed, mime_fixed, "upload", suffix_fixed)
+            maybe_upload_image(g["bytes"], g["mime"], "upload", g["suffix"])
             done_steps += 1
             _set_progress()
 
-        # Upload camera photos (fixed orientation)
+        # Upload camera photos (NORMALIZED to prevent desktop wrong rotations + fix mobile)
         for p in camera_items:
-            b_fixed, mime_fixed, suffix_fixed = normalize_image_bytes_for_upload(p["bytes"], p["mime"], None)
-            previews_fixed.append(b_fixed)
+            b_fixed, mime_fixed, suffix_fixed = normalize_camera_bytes(p["bytes"], p["mime"])
+            previews.append(b_fixed)
             maybe_upload_image(b_fixed, mime_fixed, "camera", suffix_fixed)
             done_steps += 1
             _set_progress()
 
-        # PDF stage
         done_steps += 1
         _set_progress()
 
         if flags["new_anything"]:
             try:
-                # PDF uses the corrected versions too
-                pdf_bytes = build_pdf_from_images_high_quality(previews_fixed)
+                pdf_bytes = build_pdf_from_images_high_quality(previews)
                 ts_pdf = datetime.now().strftime("%Y%m%d_%H%M%S")
                 pdf_name = f"{folio}_fotos_{ts_pdf}.pdf"
                 upload_small_file_to_folder(target_folder_id, pdf_name, pdf_bytes, "application/pdf")
@@ -854,7 +926,7 @@ if st.button("💾 Subir fotos", type="primary"):
         st.session_state.uploaded_ok = True
         st.session_state.uploaded_folio = folio
         st.session_state.uploaded_total = counter["n"]
-        st.session_state.uploaded_previews = previews_fixed
+        st.session_state.uploaded_previews = previews
         st.rerun()
 
     except requests.HTTPError as e:
