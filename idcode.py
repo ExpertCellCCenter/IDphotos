@@ -29,235 +29,228 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE: LIGHT UI + HIDE TOP DARK BANNER (STREAMLIT HEADER) + THEME-SAFE WIDGETS
+# CAMERA PREVIEW FIXED SIZES (STABLE)
+# ----------------------------------------------------
+CAM_PREVIEW_PORTRAIT_PX = 340   # altura fija en portrait
+CAM_PREVIEW_LANDSCAPE_PX = 220  # altura fija en landscape (más práctico)
+
+# ----------------------------------------------------
+# STYLE
 # ----------------------------------------------------
 st.markdown(
-    """
+    f"""
 <style>
 /* --- Hide Streamlit chrome (top bar / menu / footer) --- */
-header[data-testid="stHeader"] {display:none !important;}
-#MainMenu {visibility: hidden !important;}
-footer {visibility: hidden !important;}
-div[data-testid="stAppViewContainer"] {padding-top: 0rem !important;}
+header[data-testid="stHeader"] {{display:none !important;}}
+#MainMenu {{visibility: hidden !important;}}
+footer {{visibility: hidden !important;}}
+div[data-testid="stAppViewContainer"] {{padding-top: 0rem !important;}}
 
 /* Force a light-looking app */
-.stApp {
+.stApp {{
   background: #ffffff !important;
   color: #0B0F14 !important;
-}
-[data-testid="stAppViewContainer"]{
+}}
+[data-testid="stAppViewContainer"]{{
   background: #ffffff !important;
-}
-section[data-testid="stSidebar"]{
+}}
+section[data-testid="stSidebar"]{{
   background: #F5F7FA !important;
-}
+}}
 
 /* Text */
-h1, h2, h3, h4, h5, h6, p, li, label, span, div {
+h1, h2, h3, h4, h5, h6, p, li, label, span, div {{
   color: #0B0F14 !important;
-}
+}}
 
 /* Inputs */
-input, textarea {
+input, textarea {{
   background: #FFFFFF !important;
   color: #0B0F14 !important;
   border: 1px solid rgba(0,0,0,0.15) !important;
   border-radius: 10px !important;
-}
+}}
 
 /* -----------------------------
    FILE UPLOADER: theme-safe
 ------------------------------ */
-[data-testid="stFileUploaderDropzone"]{
+[data-testid="stFileUploaderDropzone"]{{
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.25) !important;
   border-radius: 14px !important;
-}
-[data-testid="stFileUploaderDropzone"] *{
+}}
+[data-testid="stFileUploaderDropzone"] *{{
   color: #0B0F14 !important;
-}
-[data-testid="stFileUploaderDropzone"] button{
+}}
+[data-testid="stFileUploaderDropzone"] button{{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 12px !important;
   font-weight: 800 !important;
-}
-[data-testid="stFileUploaderDropzone"] button *{
+}}
+[data-testid="stFileUploaderDropzone"] button *{{
   color: #FFFFFF !important;
-}
-[data-testid="stFileUploaderDropzone"] button:hover{
+}}
+[data-testid="stFileUploaderDropzone"] button:hover{{
   filter: brightness(0.95) !important;
-}
-[data-testid="stFileUploaderDropzone"] small{
+}}
+[data-testid="stFileUploaderDropzone"] small{{
   color: rgba(11,15,20,0.70) !important;
-}
-[data-testid="stFileUploaderDropzone"][data-active="true"]{
+}}
+[data-testid="stFileUploaderDropzone"][data-active="true"]{{
   background: rgba(0,168,224,0.08) !important;
   border-color: rgba(0,168,224,0.45) !important;
-}
+}}
 
 /* -----------------------------
    CAMERA: theme-safe Take Photo
 ------------------------------ */
-[data-testid="stCameraInput"]{
+[data-testid="stCameraInput"]{{
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.20) !important;
   border-radius: 14px !important;
   padding: 10px 12px !important;
-}
 
-/* Button styling inside camera */
-[data-testid="stCameraInput"] *{
+  /* ✅ ESTABLE: altura fija en px (portrait por default) */
+  --cam-preview-h: {CAM_PREVIEW_PORTRAIT_PX}px;
+}}
+
+[data-testid="stCameraInput"] *{{
   color: #0B0F14 !important;
-}
-[data-testid="stCameraInput"] button{
+}}
+[data-testid="stCameraInput"] button{{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 12px !important;
   font-weight: 800 !important;
-}
-[data-testid="stCameraInput"] button *{
+}}
+[data-testid="stCameraInput"] button *{{
   color: #FFFFFF !important;
-}
-[data-testid="stCameraInput"] button:hover{
+}}
+[data-testid="stCameraInput"] button:hover{{
   filter: brightness(0.95) !important;
-}
+}}
 
-/* ✅ FIX: Control the preview height with a CSS variable */
-[data-testid="stCameraInput"]{
-  --cam-preview-h: 52vh; /* default (portrait / normal) */
-}
-
-/* Force the actual preview media to use the height */
+/* ✅ Forzar tamaño del preview (video/img/canvas) a la altura fija */
 [data-testid="stCameraInput"] video,
 [data-testid="stCameraInput"] img,
-[data-testid="stCameraInput"] canvas {
+[data-testid="stCameraInput"] canvas {{
   width: 100% !important;
   height: var(--cam-preview-h) !important;
   max-height: var(--cam-preview-h) !important;
+  min-height: var(--cam-preview-h) !important;
   object-fit: contain !important;
   object-position: center center !important;
   border-radius: 12px !important;
   display: block !important;
   margin: 0 auto !important;
-  background: #111827 !important; /* dark behind letterboxing */
-}
+  background: #111827 !important;
+}}
 
-/* Portrait: slightly taller preview is ok */
-@media (orientation: portrait) {
-  [data-testid="stCameraInput"]{
-    --cam-preview-h: 52vh;
-  }
-}
-
-/* ✅ Landscape on phones/tablets: make preview SMALLER (practical) */
-@media (orientation: landscape) and (max-height: 520px) {
-  [data-testid="stCameraInput"]{
-    --cam-preview-h: 220px; /* <-- key: smaller fixed height */
-    padding: 8px 10px !important;
-  }
-
-  /* Also reduce big headings a bit so buttons stay visible */
-  h3 { font-size: 1.15rem !important; }
-}
+/* ✅ Landscape: SIEMPRE usar altura fija más pequeña (no adaptativa) */
+@media (orientation: landscape) {{
+  [data-testid="stCameraInput"]{{
+    --cam-preview-h: {CAM_PREVIEW_LANDSCAPE_PX}px;
+  }}
+}}
 
 /* Buttons */
-.stButton > button {
+.stButton > button {{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 12px !important;
   padding: 0.55rem 1rem !important;
   font-weight: 800 !important;
-}
-.stButton > button:hover{
+}}
+.stButton > button:hover{{
   filter: brightness(0.95);
-}
+}}
 
 /* Alerts */
-[data-testid="stAlert"]{
+[data-testid="stAlert"]{{
   background: #F5F7FA !important;
   border: 1px solid rgba(0,0,0,0.08) !important;
   color: #0B0F14 !important;
-}
+}}
 
 /* -----------------------------
    EXPANDERS: blue header like buttons
 ------------------------------ */
-div[data-testid="stExpander"] details{
+div[data-testid="stExpander"] details{{
   background: #FFFFFF !important;
   border: 1px solid rgba(0,0,0,0.08) !important;
   border-radius: 14px !important;
   padding: 0 !important;
   overflow: hidden !important;
-}
-div[data-testid="stExpander"] details > summary{
+}}
+div[data-testid="stExpander"] details > summary{{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
   padding: 10px 14px !important;
   font-weight: 800 !important;
   border-radius: 14px !important;
   margin: 0 !important;
-}
-div[data-testid="stExpander"] details > summary *{
+}}
+div[data-testid="stExpander"] details > summary *{{
   color: #FFFFFF !important;
-}
-div[data-testid="stExpander"] details[open] > summary{
+}}
+div[data-testid="stExpander"] details[open] > summary{{
   border-bottom-left-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
   border-bottom: 1px solid rgba(0,0,0,0.08) !important;
-}
-div[data-testid="stExpander"] details > div{
+}}
+div[data-testid="stExpander"] details > div{{
   padding: 10px 12px !important;
-}
+}}
 
 /* Header */
-.brand-header{
+.brand-header{{
   display:flex;
   align-items:center;
   gap:14px;
   padding: 6px 0 12px 0;
-}
-.brand-title{
+}}
+.brand-title{{
   font-size: 1.6rem;
   font-weight: 900;
   line-height: 1.15;
   margin: 0;
-}
-.brand-subtitle{
+}}
+.brand-subtitle{{
   margin: 4px 0 0 0;
   opacity: 0.85;
   font-size: 0.95rem;
-}
-.hr-soft{
+}}
+.hr-soft{{
   border: none;
   height: 1px;
   background: rgba(0,0,0,0.08);
   margin: 10px 0 16px 0;
-}
+}}
 
 /* Cards */
-.success-wrap{
+.success-wrap{{
   border: 1px solid rgba(0,0,0,0.08);
   background: #FFFFFF;
   border-radius: 18px;
   padding: 22px 20px;
   box-shadow: 0 10px 26px rgba(0,0,0,0.08);
-}
-.success-title{
+}}
+.success-title{{
   font-size: 1.6rem;
   font-weight: 800;
   line-height: 1.2;
   margin: 0 0 10px 0;
-}
-.success-sub{
+}}
+.success-sub{{
   font-size: 1rem;
   opacity: 0.92;
   margin: 0 0 14px 0;
-}
-.success-chip{
+}}
+.success-chip{{
   display: inline-block;
   padding: 7px 12px;
   border-radius: 999px;
@@ -265,53 +258,53 @@ div[data-testid="stExpander"] details > div{
   border: 1px solid rgba(0,168,224,0.25);
   font-weight: 700;
   margin-right: 10px;
-}
-.success-meta{
+}}
+.success-meta{{
   margin-top: 16px;
   border-top: 1px solid rgba(0,0,0,0.08);
   padding-top: 14px;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-}
-.success-box{
+}}
+.success-box{{
   flex: 1;
   min-width: 180px;
   border: 1px solid rgba(0,0,0,0.08);
   background: #F7FAFC;
   border-radius: 14px;
   padding: 12px 14px;
-}
-.success-k{
+}}
+.success-k{{
   font-size: 0.85rem;
   opacity: 0.85;
   margin: 0;
-}
-.success-v{
+}}
+.success-v{{
   font-size: 1.15rem;
   font-weight: 800;
   margin: 2px 0 0 0;
-}
-.preview-wrap{
+}}
+.preview-wrap{{
   margin-top: 14px;
   border-top: 1px solid rgba(0,0,0,0.08);
   padding-top: 14px;
-}
-.preview-title{
+}}
+.preview-title{{
   font-weight: 800;
   margin-bottom: 10px;
   opacity: 0.95;
-}
+}}
 </style>
 """,
     unsafe_allow_html=True,
 )
 
-# Anchor always present (helps scrollIntoView on mobile)
+# Anchor always present
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# SCROLL TO TOP ON SCREEN CHANGE (more robust for mobile)
+# SCROLL TO TOP
 # ----------------------------------------------------
 def scroll_to_top():
     components.html(
@@ -346,7 +339,7 @@ def scroll_to_top():
     )
 
 # ----------------------------------------------------
-# BRAND HEADER (logo + title)
+# HEADER
 # ----------------------------------------------------
 def render_header():
     logo_path = Path(__file__).parent / "att_logo.png"
@@ -370,6 +363,7 @@ def render_header():
         )
 
     st.markdown('<div class="hr-soft"></div>', unsafe_allow_html=True)
+
     st.markdown(
         """
 1) Escribe el **folio** de tu cotización (formato: `251215-0FF480`)  
@@ -379,7 +373,7 @@ def render_header():
     )
 
 # ----------------------------------------------------
-# FOLIO FORMAT
+# FOLIO
 # ----------------------------------------------------
 FOLIO_PATTERN = re.compile(r"^\d{6}-[A-Z0-9]{6}$")
 
@@ -392,7 +386,7 @@ def is_valid_folio(folio: str) -> bool:
     return bool(FOLIO_PATTERN.match(folio))
 
 # ----------------------------------------------------
-# ONEDRIVE / GRAPH HELPERS
+# GRAPH HELPERS
 # ----------------------------------------------------
 def graph_token() -> str:
     tenant_id = st.secrets["azure_app"]["tenant_id"]
@@ -454,7 +448,7 @@ def upload_small_file_to_folder(folder_item_id: str, filename: str, file_bytes: 
     r.raise_for_status()
 
 # ----------------------------------------------------
-# DUPLICATE AVOIDANCE
+# DEDUP
 # ----------------------------------------------------
 def sha256_bytes(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
@@ -468,7 +462,7 @@ def list_existing_hashes(folder_item_id: str, max_pages: int = 10) -> set[str]:
         data = r.json()
         for it in data.get("value", []):
             name = it.get("name", "")
-            m = re.search(r"__sha256_([0-9a-f]{12})", name)
+            m = re.search(r"__sha256_([0-9a-f]{{12}})", name)
             if m:
                 hashes.add(m.group(1))
         nxt = data.get("@odata.nextLink")
@@ -478,7 +472,7 @@ def list_existing_hashes(folder_item_id: str, max_pages: int = 10) -> set[str]:
     return hashes
 
 # ----------------------------------------------------
-# PDF BUILDER (Letter size; auto portrait/landscape; high quality)
+# PDF BUILDER (Letter + auto portrait/landscape + high quality)
 # ----------------------------------------------------
 def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
     if not image_bytes_list:
@@ -486,7 +480,6 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
 
     out = io.BytesIO()
     c = canvas.Canvas(out, pageCompression=0)
-
     margin = 18  # points
 
     for b in image_bytes_list:
@@ -541,15 +534,12 @@ if "uploaded_previews" not in st.session_state:
     st.session_state.uploaded_previews = []
 if "final_screen" not in st.session_state:
     st.session_state.final_screen = False
-if "last_screen" not in st.session_state:
-    st.session_state.last_screen = ""
 
 def _guess_suffix(mime: str | None, fallback_name: str | None = None) -> str:
     if fallback_name:
         s = Path(fallback_name).suffix
         if s:
             return s.lower()
-
     if not mime:
         return ".jpg"
     m = mime.lower()
@@ -570,20 +560,10 @@ def reset_flow():
     st.session_state.uploaded_previews = []
     st.session_state.final_screen = False
 
-def _current_screen() -> str:
-    if st.session_state.final_screen:
-        return "final"
-    if st.session_state.uploaded_ok:
-        return "success"
-    return "main"
-
 # ----------------------------------------------------
 # FINAL SCREEN
 # ----------------------------------------------------
 if st.session_state.final_screen:
-    scroll_to_top()
-    st.session_state.last_screen = _current_screen()
-
     render_header()
     scroll_to_top()
 
@@ -596,16 +576,6 @@ if st.session_state.final_screen:
     Ya puedes cerrar esta página con seguridad.
   </div>
   <span class="success-chip">Listo</span>
-  <div class="success-meta">
-    <div class="success-box">
-      <p class="success-k">Siguiente paso</p>
-      <p class="success-v">Continuar con la cotización (contacta a tu agente)</p>
-    </div>
-    <div class="success-box">
-      <p class="success-k">Acción</p>
-      <p class="success-v">Puedes cerrar esta pantalla</p>
-    </div>
-  </div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -621,7 +591,7 @@ if st.session_state.final_screen:
 # SUCCESS SCREEN
 # ----------------------------------------------------
 if st.session_state.uploaded_ok:
-    folio = st.session_state.uploaded_folio
+    folio_ok = st.session_state.uploaded_folio
     total = st.session_state.uploaded_total
     previews = st.session_state.uploaded_previews or []
 
@@ -633,22 +603,19 @@ if st.session_state.uploaded_ok:
 <div class="success-wrap">
   <div class="success-title">✅ Carga completada</div>
   <div class="success-sub">
-    Las fotos correspondientes a la cotización <b>{folio}</b> se subieron al sistema de manera satisfactoria.
+    Las fotos correspondientes a la cotización <b>{folio_ok}</b> se subieron al sistema de manera satisfactoria.
   </div>
-
   <span class="success-chip">Subida exitosa</span>
-
   <div class="success-meta">
     <div class="success-box">
       <p class="success-k">Folio</p>
-      <p class="success-v">{folio}</p>
+      <p class="success-v">{folio_ok}</p>
     </div>
     <div class="success-box">
       <p class="success-k">Total de fotos subidas</p>
       <p class="success-v">{total}</p>
     </div>
   </div>
-
   <div class="preview-wrap">
     <div class="preview-title">Vista previa de fotos subidas</div>
   </div>
@@ -725,9 +692,7 @@ if uploaded_files is not None and len(uploaded_files) > 0:
     new_list = []
     for f in uploaded_files:
         b = f.getvalue()
-        new_list.append(
-            {"bytes": b, "mime": f.type, "suffix": _guess_suffix(f.type, f.name), "name": f.name}
-        )
+        new_list.append({"bytes": b, "mime": f.type, "suffix": _guess_suffix(f.type, f.name), "name": f.name})
     st.session_state.gallery_photos = new_list
 
 if st.session_state.gallery_photos:
