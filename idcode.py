@@ -10,10 +10,10 @@ import streamlit.components.v1 as components
 import requests
 from PIL import Image, ImageOps
 
-# High-quality PDF
+# PDF
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
-from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib.pagesizes import letter, landscape as rl_landscape
 
 # Optional HEIC/HEIF support
 try:
@@ -29,8 +29,7 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE: LIGHT UI + HIDE TOP DARK BANNER + THEME-SAFE WIDGETS
-# + RESPONSIVE IMPROVEMENTS FOR MOBILE LANDSCAPE
+# STYLE: LIGHT UI + HIDE TOP DARK BANNER (STREAMLIT HEADER) + THEME-SAFE WIDGETS
 # ----------------------------------------------------
 st.markdown(
     """
@@ -42,9 +41,12 @@ footer {visibility: hidden !important;}
 div[data-testid="stAppViewContainer"] {padding-top: 0rem !important;}
 
 /* Force a light-looking app */
-.stApp, [data-testid="stAppViewContainer"]{
+.stApp {
   background: #ffffff !important;
   color: #0B0F14 !important;
+}
+[data-testid="stAppViewContainer"]{
+  background: #ffffff !important;
 }
 section[data-testid="stSidebar"]{
   background: #F5F7FA !important;
@@ -71,7 +73,9 @@ input, textarea {
   border: 1px dashed rgba(0,0,0,0.25) !important;
   border-radius: 14px !important;
 }
-[data-testid="stFileUploaderDropzone"] *{ color: #0B0F14 !important; }
+[data-testid="stFileUploaderDropzone"] *{
+  color: #0B0F14 !important;
+}
 [data-testid="stFileUploaderDropzone"] button{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
@@ -79,9 +83,15 @@ input, textarea {
   border-radius: 12px !important;
   font-weight: 800 !important;
 }
-[data-testid="stFileUploaderDropzone"] button *{ color: #FFFFFF !important; }
-[data-testid="stFileUploaderDropzone"] button:hover{ filter: brightness(0.95) !important; }
-[data-testid="stFileUploaderDropzone"] small{ color: rgba(11,15,20,0.70) !important; }
+[data-testid="stFileUploaderDropzone"] button *{
+  color: #FFFFFF !important;
+}
+[data-testid="stFileUploaderDropzone"] button:hover{
+  filter: brightness(0.95) !important;
+}
+[data-testid="stFileUploaderDropzone"] small{
+  color: rgba(11,15,20,0.70) !important;
+}
 [data-testid="stFileUploaderDropzone"][data-active="true"]{
   background: rgba(0,168,224,0.08) !important;
   border-color: rgba(0,168,224,0.45) !important;
@@ -95,7 +105,9 @@ input, textarea {
   border: 1px dashed rgba(0,0,0,0.20) !important;
   border-radius: 14px !important;
 }
-[data-testid="stCameraInput"] *{ color: #0B0F14 !important; }
+[data-testid="stCameraInput"] *{
+  color: #0B0F14 !important;
+}
 [data-testid="stCameraInput"] button{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
@@ -103,8 +115,42 @@ input, textarea {
   border-radius: 12px !important;
   font-weight: 800 !important;
 }
-[data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
-[data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
+[data-testid="stCameraInput"] button *{
+  color: #FFFFFF !important;
+}
+[data-testid="stCameraInput"] button:hover{
+  filter: brightness(0.95) !important;
+}
+
+/* ✅ Make camera preview responsive (especially on phones in landscape) */
+[data-testid="stCameraInput"] video,
+[data-testid="stCameraInput"] img {
+  width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
+  border-radius: 12px !important;
+}
+
+/* Default max height (portrait / normal) */
+@media (orientation: portrait) {
+  [data-testid="stCameraInput"] video,
+  [data-testid="stCameraInput"] img {
+    max-height: 55vh !important;
+  }
+}
+
+/* Landscape on mobile: keep the camera preview smaller so user can see buttons */
+@media (orientation: landscape) and (max-height: 520px) {
+  [data-testid="stCameraInput"] video,
+  [data-testid="stCameraInput"] img {
+    max-height: 34vh !important;
+  }
+  /* reduce vertical whitespace */
+  [data-testid="stCameraInput"]{
+    padding-bottom: 6px !important;
+  }
+  h3 { font-size: 1.25rem !important; }
+}
 
 /* Buttons */
 .stButton > button {
@@ -115,7 +161,9 @@ input, textarea {
   padding: 0.55rem 1rem !important;
   font-weight: 800 !important;
 }
-.stButton > button:hover{ filter: brightness(0.95); }
+.stButton > button:hover{
+  filter: brightness(0.95);
+}
 
 /* Alerts */
 [data-testid="stAlert"]{
@@ -142,19 +190,42 @@ div[data-testid="stExpander"] details > summary{
   border-radius: 14px !important;
   margin: 0 !important;
 }
-div[data-testid="stExpander"] details > summary *{ color: #FFFFFF !important; }
+div[data-testid="stExpander"] details > summary *{
+  color: #FFFFFF !important;
+}
 div[data-testid="stExpander"] details[open] > summary{
   border-bottom-left-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
   border-bottom: 1px solid rgba(0,0,0,0.08) !important;
 }
-div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
+div[data-testid="stExpander"] details > div{
+  padding: 10px 12px !important;
+}
 
 /* Header */
-.brand-header{ display:flex; align-items:center; gap:14px; padding: 6px 0 12px 0; }
-.brand-title{ font-size: 1.6rem; font-weight: 900; line-height: 1.15; margin: 0; }
-.brand-subtitle{ margin: 4px 0 0 0; opacity: 0.85; font-size: 0.95rem; }
-.hr-soft{ border: none; height: 1px; background: rgba(0,0,0,0.08); margin: 10px 0 16px 0; }
+.brand-header{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding: 6px 0 12px 0;
+}
+.brand-title{
+  font-size: 1.6rem;
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 0;
+}
+.brand-subtitle{
+  margin: 4px 0 0 0;
+  opacity: 0.85;
+  font-size: 0.95rem;
+}
+.hr-soft{
+  border: none;
+  height: 1px;
+  background: rgba(0,0,0,0.08);
+  margin: 10px 0 16px 0;
+}
 
 /* Cards */
 .success-wrap{
@@ -164,8 +235,17 @@ div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
   padding: 22px 20px;
   box-shadow: 0 10px 26px rgba(0,0,0,0.08);
 }
-.success-title{ font-size: 1.6rem; font-weight: 800; line-height: 1.2; margin: 0 0 10px 0; }
-.success-sub{ font-size: 1rem; opacity: 0.92; margin: 0 0 14px 0; }
+.success-title{
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0 0 10px 0;
+}
+.success-sub{
+  font-size: 1rem;
+  opacity: 0.92;
+  margin: 0 0 14px 0;
+}
 .success-chip{
   display: inline-block;
   padding: 7px 12px;
@@ -191,58 +271,25 @@ div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
   border-radius: 14px;
   padding: 12px 14px;
 }
-.success-k{ font-size: 0.85rem; opacity: 0.85; margin: 0; }
-.success-v{ font-size: 1.15rem; font-weight: 800; margin: 2px 0 0 0; }
+.success-k{
+  font-size: 0.85rem;
+  opacity: 0.85;
+  margin: 0;
+}
+.success-v{
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 2px 0 0 0;
+}
 .preview-wrap{
   margin-top: 14px;
   border-top: 1px solid rgba(0,0,0,0.08);
   padding-top: 14px;
 }
-.preview-title{ font-weight: 800; margin-bottom: 10px; opacity: 0.95; }
-
-/* ----------------------------------------------------
-   ✅ MOBILE LANDSCAPE UX IMPROVEMENTS
-   - Use almost full width
-   - Reduce vertical whitespace
-   - Make camera preview much taller (so user can see the full shot)
----------------------------------------------------- */
-@media (orientation: landscape) and (max-height: 560px) {
-  /* block-container is the main content wrapper */
-  div.block-container{
-    max-width: 98vw !important;
-    padding-left: 0.8rem !important;
-    padding-right: 0.8rem !important;
-    padding-top: 0.35rem !important;
-    padding-bottom: 0.35rem !important;
-  }
-
-  .brand-title{ font-size: 1.25rem !important; }
-  .brand-subtitle{ font-size: 0.85rem !important; }
-  .hr-soft{ margin: 6px 0 10px 0 !important; }
-
-  /* Reduce markdown spacing a bit */
-  .stMarkdown p{ margin-bottom: 0.35rem !important; }
-  .stMarkdown ol, .stMarkdown ul{ margin-top: 0.15rem !important; margin-bottom: 0.15rem !important; }
-
-  /* Camera area: make the live preview much bigger */
-  [data-testid="stCameraInput"]{
-    padding: 6px 8px !important;
-  }
-  [data-testid="stCameraInput"] video,
-  [data-testid="stCameraInput"] img{
-    width: 100% !important;
-    height: 65vh !important;
-    max-height: 65vh !important;
-    object-fit: contain !important; /* show the whole frame */
-    background: #000 !important;
-    border-radius: 12px !important;
-  }
-
-  /* Buttons: slightly smaller so they don't eat vertical space */
-  .stButton > button{
-    padding: 0.45rem 0.85rem !important;
-    font-size: 0.95rem !important;
-  }
+.preview-title{
+  font-weight: 800;
+  margin-bottom: 10px;
+  opacity: 0.95;
 }
 </style>
 """,
@@ -253,7 +300,7 @@ div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
-# SCROLL TO TOP ON SCREEN CHANGE (robust for mobile)
+# SCROLL TO TOP ON SCREEN CHANGE (more robust for mobile)
 # ----------------------------------------------------
 def scroll_to_top():
     components.html(
@@ -399,7 +446,7 @@ def upload_small_file_to_folder(folder_item_id: str, filename: str, file_bytes: 
     r.raise_for_status()
 
 # ----------------------------------------------------
-# DUPLICATE AVOIDANCE
+# DUPLICATE AVOIDANCE (per folio folder, by hash tag in filename)
 # ----------------------------------------------------
 def sha256_bytes(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
@@ -423,7 +470,7 @@ def list_existing_hashes(folder_item_id: str, max_pages: int = 10) -> set[str]:
     return hashes
 
 # ----------------------------------------------------
-# PDF BUILDER (Letter size; per-image page orientation; high quality)
+# PDF BUILDER (Letter size; auto portrait/landscape; high quality)
 # ----------------------------------------------------
 def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
     if not image_bytes_list:
@@ -431,6 +478,8 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
 
     out = io.BytesIO()
     c = canvas.Canvas(out, pageCompression=0)
+
+    margin = 18  # points
 
     for b in image_bytes_list:
         img = Image.open(io.BytesIO(b))
@@ -444,19 +493,19 @@ def build_pdf_from_images_high_quality(image_bytes_list: list[bytes]) -> bytes:
         w_px, h_px = img.size
         is_landscape = w_px >= h_px
 
-        page_w, page_h = (landscape(letter) if is_landscape else letter)
+        page_w, page_h = (rl_landscape(letter) if is_landscape else letter)
         c.setPageSize((page_w, page_h))
 
-        # Lossless embedding (PNG) to avoid recompress artifacts
+        # embed as lossless PNG (no quality loss)
         png_buf = io.BytesIO()
         img.save(png_buf, format="PNG", optimize=False)
         png_buf.seek(0)
 
-        margin = 18  # small margin
+        # fit image within letter page
         avail_w = page_w - 2 * margin
         avail_h = page_h - 2 * margin
-
         scale = min(avail_w / w_px, avail_h / h_px)
+
         draw_w = w_px * scale
         draw_h = h_px * scale
         x = (page_w - draw_w) / 2
@@ -679,7 +728,9 @@ if uploaded_files is not None and len(uploaded_files) > 0:
     new_list = []
     for f in uploaded_files:
         b = f.getvalue()
-        new_list.append({"bytes": b, "mime": f.type, "suffix": _guess_suffix(f.type, f.name), "name": f.name})
+        new_list.append(
+            {"bytes": b, "mime": f.type, "suffix": _guess_suffix(f.type, f.name), "name": f.name}
+        )
     st.session_state.gallery_photos = new_list
 
 if st.session_state.gallery_photos:
@@ -739,7 +790,7 @@ if st.button("💾 Subir fotos", type="primary"):
     camera_items = st.session_state.camera_photos
 
     total_selected = len(gallery_items) + len(camera_items)
-    total_steps = max(1, total_selected) + 2  # folder prep + photos + PDF stage
+    total_steps = max(1, total_selected) + 2
     done_steps = 0
 
     legend = st.empty()
@@ -774,6 +825,7 @@ if st.button("💾 Subir fotos", type="primary"):
                 return False
 
             seen_this_run.add(h12)
+
             ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             filename = f"{folio}_{source}_{ts}__sha256_{h12}{suffix}"
             upload_small_file_to_folder(target_folder_id, filename, b, mime)
