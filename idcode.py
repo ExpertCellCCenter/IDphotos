@@ -112,24 +112,35 @@ div[data-testid="stCameraInput"] img{
 /* --- MOBILE LANDSCAPE FIX --- */
 /* Only applies when screen is landscape and height is small (like a phone) */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
-  
-  /* 1. Target the VIDEO element directly */
+
+  /* 1. Reset the main container wrapper to remove padding/borders */
+  [data-testid="stCameraInput"] {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin-bottom: 10px !important; /* Add slight space above button */
+  }
+
+  /* 2. Target the direct wrapper of the video to remove background colors */
+  [data-testid="stCameraInput"] > div {
+    background-color: transparent !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    border: none !important;
+  }
+
+  /* 3. Force video/image to cover the area and limit height */
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
     width: 100% !important;
-    /* Limit the video's height so there is room for the button below it */
-    max-height: 60vh !important;
-    /* 'cover' zooms the video in to fill the box, removing black/gray bars */
+    height: auto !important;
+    /* Limit height so button fits. 70vh is usually a good balance. */
+    max-height: 70vh !important;
+    /* KEY: 'cover' zooms in to fill space, removing borders */
     object-fit: cover !important;
     margin: 0 auto !important;
     display: block !important;
-  }
-
-  /* 2. Ensure the container centers its content and has no background */
-  div[data-testid="stCameraInput"] > div {
-      text-align: center !important;
-      width: 100% !important;
-      background-color: transparent !important;
+    border-radius: 12px !important; /* Optional: nice rounded corners */
   }
 }
 
