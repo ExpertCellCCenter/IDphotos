@@ -31,7 +31,7 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE (CRITICAL FIXES HERE)
+# STYLE (CRITICAL FIXES FOR ACCURATE PREVIEW)
 # ----------------------------------------------------
 st.markdown(
     """
@@ -85,15 +85,24 @@ input, textarea {
 
 /* 1. Base Container */
 [data-testid="stCameraInput"]{
-  background: #F7FAFC !important;
+  background: #000000 !important; /* Black background for letterboxing */
   border: 1px dashed rgba(0,0,0,0.20) !important;
   border-radius: 14px !important;
   position: relative !important; 
-  overflow: visible !important; /* Allow buttons to pop out if needed */
+  overflow: visible !important;
 }
 
-/* 2. THE SHUTTER BUTTON ("Take Photo") 
-   Target: Button that has NO svg icon inside */
+/* 2. FIDELITY FIX (PORTRAIT/DEFAULT)
+   Force both the live video and the captured image to 'contain'.
+   This ensures the preview is always accurate to the final photo. */
+div[data-testid="stCameraInput"] video,
+div[data-testid="stCameraInput"] img {
+  width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important; /* CRITICAL: Shows the full frame */
+}
+
+/* 3. THE SHUTTER BUTTON ("Take Photo") */
 [data-testid="stCameraInput"] button:not(:has(svg)) {
   background: #00A8E0 !important;
   color: #FFFFFF !important;
@@ -101,19 +110,18 @@ input, textarea {
   border-radius: 12px !important;
   font-weight: 800 !important;
   padding: 0.55rem 1rem !important;
-  z-index: 998 !important; /* High, but below switch/clear if they overlap */
+  z-index: 998 !important;
   position: relative !important;
 }
 [data-testid="stCameraInput"] button:not(:has(svg)):hover { filter: brightness(0.95) !important; }
 [data-testid="stCameraInput"] button:not(:has(svg)) * { color: #FFFFFF !important; }
 
-/* 3. SWITCH CAMERA & CLEAR PHOTO BUTTONS
-   Target: Buttons that DO have svg icons */
+/* 4. SWITCH CAMERA & CLEAR PHOTO BUTTONS */
 [data-testid="stCameraInput"] button:has(svg) {
-  background: rgba(0,0,0,0.6) !important; /* Darker backing for visibility */
+  background: rgba(0,0,0,0.6) !important;
   border: 1px solid rgba(255,255,255,0.6) !important;
   border-radius: 8px !important;
-  z-index: 9999 !important; /* Highest priority */
+  z-index: 9999 !important;
   opacity: 1 !important;
 }
 [data-testid="stCameraInput"] button:has(svg) svg {
@@ -131,29 +139,27 @@ input, textarea {
   div[data-testid="stCameraInput"],
   div[data-testid="stCameraInput"] > div {
     width: 100% !important;
-    height: 85vh !important; /* Takes up most of height */
+    height: 85vh !important;
     aspect-ratio: unset !important;
     min-height: unset !important;
     padding: 0 !important;
-    background: #000000 !important; /* Black background to handle 'contain' bars */
+    background: #000000 !important;
     border: none !important;
     display: block !important;
   }
 
-  /* B. FIDELITY FIX: 
-     Force the video and image to 'contain'.
-     This stops the camera from zooming in/cropping. 
-     You will see black bars, but the framing is 100% accurate. */
+  /* B. FIDELITY FIX (LANDSCAPE)
+     Ensure 'contain' is also used here for accurate preview. */
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
     width: 100% !important;
     height: 100% !important;
-    object-fit: contain !important; /* CRITICAL CHANGE */
+    object-fit: contain !important; /* CRITICAL: Shows the full frame */
     border-radius: 0 !important;
     margin: 0 !important;
   }
 
-  /* C. Position the "Take Photo" button at the bottom center */
+  /* C. Position the "Take Photo" button */
   div[data-testid="stCameraInput"] button:not(:has(svg)) {
     position: absolute !important;
     bottom: 15px !important;
@@ -163,12 +169,11 @@ input, textarea {
     min-width: 200px !important;
   }
 
-  /* D. Position "Switch Camera" & "Clear Photo" 
-     We float them to the top-right to avoid the dynamic island on left */
+  /* D. Position "Switch Camera" & "Clear Photo" */
   div[data-testid="stCameraInput"] button:has(svg) {
     position: absolute !important;
     top: 15px !important;
-    right: 15px !important; /* Stick to right */
+    right: 15px !important;
     left: auto !important;
     bottom: auto !important;
     transform: none !important;
@@ -567,13 +572,20 @@ if uploaded_files:
 
 st.markdown("---")
 st.subheader("📸 Cámara")
-camera_photo = st.camera_input("Toma foto", key="camera_input")
+# Generate a unique key to force reload if needed, but for now a static one is fine
+camera_photo = st.camera_input("Toma foto", key="camera_input_widget")
+
 c1, c2, c3 = st.columns(3)
+# Use state variables to track button presses to avoid rerun issues
 if c1.button("➕ Agregar foto"):
     if camera_photo:
         st.session_state.camera_photos.append({"bytes": camera_photo.getvalue(), "mime": camera_photo.type})
         st.success("Foto agregada")
-        st.rerun()
+        # Optional: rerun to clear the camera input, but might cause flickering
+        # st.rerun() 
+    else:
+        st.warning("Toma una foto primero")
+
 if c2.button("🗑️ Borrar fotos"):
     st.session_state.camera_photos = []
     st.rerun()
