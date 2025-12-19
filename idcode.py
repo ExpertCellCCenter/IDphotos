@@ -113,25 +113,22 @@ div[data-testid="stCameraInput"] img{
 /* Only applies when screen is landscape and height is small (like a phone) */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
   
-  /* 1. Target the video/image element directly */
-  div[data-testid="stCameraInput"] video,
-  div[data-testid="stCameraInput"] img {
-    /* Stop forcing 100% width based on container */
-    width: auto !important;
-    /* Limit height to 60% of screen so there is room for the button below */
-    max-height: 60vh !important;
-    /* Center horizontally */
-    margin: 0 auto !important;
-    display: block !important;
-    /* FIX: Change contain to cover to remove borders */
-    object-fit: cover !important;
+  /* 1. Force the CONTAINER to fill width but restrict height */
+  div[data-testid="stCameraInput"] {
+    width: 100% !important;       /* Go full width to remove side gaps */
+    height: 65vh !important;      /* Limit height so button fits below */
+    min-height: auto !important;
+    background: transparent !important; /* Ensure no gray background shows */
+    overflow: hidden !important;  /* Clip anything spilling out */
   }
 
-  /* 2. Ensure the container centers its content and has no background */
-  div[data-testid="stCameraInput"] > div {
-      text-align: center !important;
-      width: 100% !important;
-      background-color: transparent !important;
+  /* 2. Force the VIDEO to stretch and fill the container completely */
+  div[data-testid="stCameraInput"] video,
+  div[data-testid="stCameraInput"] img {
+    width: 100% !important;
+    height: 100% !important;
+    /* 'cover' zooms the video in to fill the box, removing black/gray bars */
+    object-fit: cover !important; 
   }
 }
 
