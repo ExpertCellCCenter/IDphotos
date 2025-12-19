@@ -31,7 +31,7 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE (GLOBAL NO-CROP FIX)
+# STYLE (Original "Perfect" CSS + Progress Bar Tweaks)
 # ----------------------------------------------------
 st.markdown(
     """
@@ -78,41 +78,37 @@ input, textarea {
 }
 
 /* ==================================================
-   CAMERA STYLING - GLOBAL FIXES
+   CAMERA STYLING
    ================================================== */
 
 /* 1. Main Camera Container */
 [data-testid="stCameraInput"] {
   width: 100% !important;
-  background: #000000 !important; /* Black bars instead of white */
+  background: #000000 !important; 
   border-radius: 14px !important;
   position: relative !important;
   overflow: hidden !important;
 }
 
-/* 2. REMOVE STREAMLIT'S FORCED ASPECT RATIO 
-   This is the key to fixing the cropping issue. 
-   We tell the inner container to stop forcing 1:1 or 4:3 cropping. */
+/* 2. REMOVE FORCED ASPECT RATIO */
 [data-testid="stCameraInput"] > div {
     aspect-ratio: unset !important;
     height: auto !important;
 }
 
-/* 3. THE VIDEO FEED (Streaming) & IMAGE PREVIEW (Captured)
-   'object-fit: contain' ensures the ENTIRE sensor image fits in the box.
-   No cropping happens here. */
+/* 3. VIDEO & IMAGE PREVIEW (NO CROP) */
 [data-testid="stCameraInput"] video,
 [data-testid="stCameraInput"] img {
   width: 100% !important;
   height: auto !important;
-  min-height: 300px !important; /* Minimum height for visibility */
-  max-height: 80vh !important;  /* Don't be taller than screen */
-  object-fit: contain !important; /* <--- THE FIX */
+  min-height: 300px !important; 
+  max-height: 80vh !important;  
+  object-fit: contain !important; /* Shows full sensor view */
 }
 
-/* 4. ALL BUTTONS INSIDE CAMERA (Take Photo, Clear, Switch) */
+/* 4. BUTTONS (Blue) */
 [data-testid="stCameraInput"] button {
-  background: #00A8E0 !important; /* Brand Blue */
+  background: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 8px !important;
@@ -127,23 +123,20 @@ input, textarea {
   stroke: white !important;
 }
 
-/* 5. Position: 'Take Photo' Button */
+/* 5. Take Photo Button Position */
 [data-testid="stCameraInput"] button:not(:has(svg)) {
   padding: 0.55rem 1rem !important;
-  margin: 10px auto !important; /* Center it */
+  margin: 10px auto !important; 
 }
 
-/* 6. Position: Icon Buttons (Switch / Clear) */
+/* 6. Icon Buttons Position */
 [data-testid="stCameraInput"] button:has(svg) {
   padding: 8px 12px !important;
   border: 1px solid rgba(255,255,255,0.2) !important;
 }
 
 /* --- MOBILE LANDSCAPE SPECIFIC --- */
-/* Optimizes layout when phone is rotated */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
-
-  /* Maximize Container */
   div[data-testid="stCameraInput"],
   div[data-testid="stCameraInput"] > div {
     height: 90vh !important; 
@@ -156,7 +149,6 @@ input, textarea {
     align-items: center;
   }
 
-  /* Force video to fit fully */
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
     height: 100% !important;
@@ -165,7 +157,6 @@ input, textarea {
     max-height: unset !important;
   }
 
-  /* Floating 'Take Photo' Button */
   div[data-testid="stCameraInput"] button:not(:has(svg)) {
     position: absolute !important;
     bottom: 20px !important;
@@ -176,7 +167,6 @@ input, textarea {
     white-space: nowrap !important;
   }
 
-  /* Floating 'Switch Camera' & 'Clear Photo' */
   div[data-testid="stCameraInput"] button:has(svg) {
     position: absolute !important;
     top: 15px !important;
@@ -187,7 +177,7 @@ input, textarea {
   }
 }
 
-/* Standard Buttons (outside camera) */
+/* Standard Buttons */
 .stButton > button {
   background: #00A8E0 !important;
   color: #FFFFFF !important;
@@ -603,6 +593,11 @@ if st.button("💾 Subir fotos", type="primary"):
         st.error("No hay fotos.")
         st.stop()
     
+    # NEW PROGRESS LOGIC
+    status_text = st.empty()
+    bar = st.progress(0)
+    status_text.markdown("⏳ **Subiendo...**")
+    
     try:
         target_id = ensure_path([base_folder, folio])
         exist_hashes = list_existing_hashes(target_id)
@@ -610,7 +605,6 @@ if st.button("💾 Subir fotos", type="primary"):
         items = st.session_state.gallery_photos + st.session_state.camera_photos
         pdf_imgs = []
         
-        bar = st.progress(0)
         for i, item in enumerate(items):
             src_type = "camera" if item in st.session_state.camera_photos else "upload"
             sb, sm, ss = prepare_for_storage(item["bytes"], item.get("mime"), src_type)
@@ -620,6 +614,8 @@ if st.button("💾 Subir fotos", type="primary"):
             if h not in exist_hashes:
                 fname = f"{folio}_{src_type}_{datetime.now().strftime('%H%M%S')}__{h}{ss}"
                 upload_small_file_to_folder(target_id, fname, sb, sm)
+            
+            # Update bar
             bar.progress((i+1)/len(items))
             
         # PDF
@@ -628,6 +624,9 @@ if st.button("💾 Subir fotos", type="primary"):
             pdf_n = f"{folio}_fotos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
             upload_small_file_to_folder(target_id, pdf_n, pdf_b, "application/pdf")
         except Exception: pass
+        
+        bar.progress(100)
+        status_text.markdown("✅ **Finalizado**")
         
         st.session_state.uploaded_ok = True
         st.session_state.uploaded_folio = folio
