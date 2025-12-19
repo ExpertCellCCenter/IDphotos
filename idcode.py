@@ -31,7 +31,7 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE (FIXED: UN-CROPPED VIDEO & ALL BLUE BUTTONS)
+# STYLE (GLOBAL NO-CROP FIX)
 # ----------------------------------------------------
 st.markdown(
     """
@@ -78,39 +78,46 @@ input, textarea {
 }
 
 /* ==================================================
-   CAMERA STYLING FIXES
+   CAMERA STYLING - GLOBAL FIXES
    ================================================== */
 
 /* 1. Main Camera Container */
-[data-testid="stCameraInput"]{
+[data-testid="stCameraInput"] {
   width: 100% !important;
-  background: #000000 !important; /* Black background to show limits clearly */
+  background: #000000 !important; /* Black bars instead of white */
   border-radius: 14px !important;
-  position: relative !important; 
-  overflow: hidden !important; 
-  aspect-ratio: unset !important; /* Disable default aspect ratio enforcement */
+  position: relative !important;
+  overflow: hidden !important;
 }
 
-/* 2. THE VIDEO FEED & PREVIEW IMAGE
-   CRITICAL: 'object-fit: contain' ensures NO CROPPING. 
-   It shows the full sensor output. You will see black bars (letterboxing). */
+/* 2. REMOVE STREAMLIT'S FORCED ASPECT RATIO 
+   This is the key to fixing the cropping issue. 
+   We tell the inner container to stop forcing 1:1 or 4:3 cropping. */
+[data-testid="stCameraInput"] > div {
+    aspect-ratio: unset !important;
+    height: auto !important;
+}
+
+/* 3. THE VIDEO FEED (Streaming) & IMAGE PREVIEW (Captured)
+   'object-fit: contain' ensures the ENTIRE sensor image fits in the box.
+   No cropping happens here. */
 [data-testid="stCameraInput"] video,
 [data-testid="stCameraInput"] img {
   width: 100% !important;
   height: auto !important;
-  min-height: 50vh !important;
-  object-fit: contain !important; /* Forces the original, uncropped view */
+  min-height: 300px !important; /* Minimum height for visibility */
+  max-height: 80vh !important;  /* Don't be taller than screen */
+  object-fit: contain !important; /* <--- THE FIX */
 }
 
-/* 3. ALL BUTTONS INSIDE CAMERA (Take Photo, Clear, Switch) 
-   Force them all to be BLUE (#00A8E0) */
+/* 4. ALL BUTTONS INSIDE CAMERA (Take Photo, Clear, Switch) */
 [data-testid="stCameraInput"] button {
-  background: #00A8E0 !important;
+  background: #00A8E0 !important; /* Brand Blue */
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 8px !important;
   font-weight: 800 !important;
-  z-index: 9999 !important; /* Ensure they are on top of video */
+  z-index: 9999 !important;
 }
 [data-testid="stCameraInput"] button:hover {
   filter: brightness(0.95) !important;
@@ -118,25 +125,25 @@ input, textarea {
 [data-testid="stCameraInput"] button svg {
   fill: white !important;
   stroke: white !important;
-  color: white !important;
 }
 
-/* 4. Position Specifics: SHUTTER BUTTON ('Take Photo') */
+/* 5. Position: 'Take Photo' Button */
 [data-testid="stCameraInput"] button:not(:has(svg)) {
   padding: 0.55rem 1rem !important;
-  position: relative !important;
+  margin: 10px auto !important; /* Center it */
 }
 
-/* 5. Position Specifics: ICON BUTTONS (Switch/Clear) */
+/* 6. Position: Icon Buttons (Switch / Clear) */
 [data-testid="stCameraInput"] button:has(svg) {
   padding: 8px 12px !important;
   border: 1px solid rgba(255,255,255,0.2) !important;
 }
 
 /* --- MOBILE LANDSCAPE SPECIFIC --- */
+/* Optimizes layout when phone is rotated */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
 
-  /* A. Maximize Container */
+  /* Maximize Container */
   div[data-testid="stCameraInput"],
   div[data-testid="stCameraInput"] > div {
     height: 90vh !important; 
@@ -149,15 +156,16 @@ input, textarea {
     align-items: center;
   }
 
-  /* B. Video Fidelity - FORCE CONTAIN */
+  /* Force video to fit fully */
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
     height: 100% !important;
     width: 100% !important;
-    object-fit: contain !important; /* Keeps original view, no cropping */
+    object-fit: contain !important;
+    max-height: unset !important;
   }
 
-  /* C. Floating 'Take Photo' Button (Bottom Center) */
+  /* Floating 'Take Photo' Button */
   div[data-testid="stCameraInput"] button:not(:has(svg)) {
     position: absolute !important;
     bottom: 20px !important;
@@ -168,7 +176,7 @@ input, textarea {
     white-space: nowrap !important;
   }
 
-  /* D. Floating 'Switch Camera' & 'Clear Photo' (Top Right) */
+  /* Floating 'Switch Camera' & 'Clear Photo' */
   div[data-testid="stCameraInput"] button:has(svg) {
     position: absolute !important;
     top: 15px !important;
@@ -230,8 +238,6 @@ input, textarea {
   border-radius: 14px;
   padding: 12px 14px;
 }
-.success-k{ font-size: 0.85rem; opacity: 0.85; margin: 0; }
-.success-v{ font-size: 1.15rem; font-weight: 800; margin: 2px 0 0 0; }
 .preview-wrap{ margin-top: 14px; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 14px; }
 .preview-title{ font-weight: 800; margin-bottom: 10px; opacity: 0.95; }
 </style>
