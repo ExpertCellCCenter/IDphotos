@@ -585,7 +585,7 @@ st.subheader("📸 Cámara")
 st.markdown("""
 > **Instrucciones para tomar fotos:**
 > 1.  📸 **Cambiar de cámara** presionando el boton que contiene una cámara con flechas para cambiar entre cámara frontal y trasera.
-> 2.  📸 **Toma la foto** presionando el botón de tomar foto.
+> 2.  📸 **Toma la foto** presionando el botón de **"Tomar foto"**.
 > 3.  ➕ Si la foto se ve bien, presiona **"Agregar foto"** para guardarla.
 > 4.  ➕ Para tomar otra foto adicional, presiona **"Limpiar foto"** para poder tomar fotos adicionales.
 > 5.  🔁 Repite los pasos para tomar más fotos.
@@ -659,4 +659,5 @@ if st.button("💾 Subir fotos", type="primary"):
         st.rerun()
     except Exception as e:
         st.error(f"Error: {e}")
+
 
