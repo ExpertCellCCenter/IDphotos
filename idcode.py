@@ -31,7 +31,7 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE (UPDATED FIX)
+# STYLE (UPDATED FIX FOR SWITCH CAMERA)
 # ----------------------------------------------------
 st.markdown(
     """
@@ -80,27 +80,61 @@ input, textarea {
   border-color: rgba(0,168,224,0.45) !important;
 }
 
-/* CAMERA INPUT STYLING */
+/* --- CAMERA INPUT STYLING --- */
+
+/* Base Container */
 [data-testid="stCameraInput"]{
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.20) !important;
   border-radius: 14px !important;
-  /* Critical: allows absolute positioning of the button inside */
   position: relative !important; 
 }
 [data-testid="stCameraInput"] *{ color: #0B0F14 !important; }
 
-[data-testid="stCameraInput"] button{
+/* SHUTTER BUTTON (The "Take Photo" button)
+   Logic: It is a button that does NOT contain an SVG icon. 
+*/
+[data-testid="stCameraInput"] button:not(:has(svg)) {
   background: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 12px !important;
   font-weight: 800 !important;
+  padding: 0.55rem 1rem !important;
   z-index: 999 !important;
-  position: relative !important;
+  position: relative !important; /* Default for portrait */
 }
-[data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
-[data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
+[data-testid="stCameraInput"] button:not(:has(svg)):hover { 
+  filter: brightness(0.95) !important; 
+}
+[data-testid="stCameraInput"] button:not(:has(svg)) * { 
+  color: #FFFFFF !important; 
+}
+
+/* SWITCH CAMERA BUTTON (The Icon)
+   Logic: It is a button that DOES contain an SVG icon.
+*/
+[data-testid="stCameraInput"] button:has(svg) {
+  background: rgba(0,0,0,0.4) !important; /* Semi-transparent backing */
+  border: 1px solid rgba(255,255,255,0.4) !important;
+  border-radius: 50% !important;
+  width: 40px !important;
+  height: 40px !important;
+  z-index: 1000 !important; /* Above everything */
+  /* Ensure it doesn't get hidden */
+  opacity: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+[data-testid="stCameraInput"] button:has(svg):hover {
+  background: rgba(0,0,0,0.6) !important;
+}
+[data-testid="stCameraInput"] button:has(svg) svg {
+  fill: white !important;
+  width: 20px !important;
+  height: 20px !important;
+}
 
 /* --- DEFAULT (PORTRAIT) BEHAVIOR --- */
 div[data-testid="stCameraInput"] video,
@@ -118,7 +152,7 @@ div[data-testid="stCameraInput"] img{
   div[data-testid="stCameraInput"],
   div[data-testid="stCameraInput"] > div {
     width: 100% !important;
-    height: 80vh !important;
+    height: 85vh !important;
     aspect-ratio: unset !important;
     min-height: unset !important;
     padding: 0 !important;
@@ -136,8 +170,8 @@ div[data-testid="stCameraInput"] img{
     margin: 0 !important;
   }
 
-  /* 3. FLOAT THE BUTTON */
-  div[data-testid="stCameraInput"] button {
+  /* 3. FLOAT THE SHUTTER BUTTON (Bottom Center) */
+  div[data-testid="stCameraInput"] button:not(:has(svg)) {
     position: absolute !important;
     bottom: 20px !important;
     left: 50% !important;
@@ -145,9 +179,20 @@ div[data-testid="stCameraInput"] img{
     z-index: 9999 !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
   }
+
+  /* 4. FLOAT THE SWITCH CAMERA BUTTON (Top Right) */
+  div[data-testid="stCameraInput"] button:has(svg) {
+    position: absolute !important;
+    top: 15px !important;
+    right: 15px !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
+    z-index: 10000 !important;
+  }
 }
 
-/* Buttons */
+/* Standard Buttons (outside camera) */
 .stButton > button {
   background: #00A8E0 !important;
   color: #FFFFFF !important;
@@ -165,7 +210,7 @@ div[data-testid="stCameraInput"] img{
   color: #0B0F14 !important;
 }
 
-/* EXPANDERS: blue header like buttons */
+/* EXPANDERS */
 div[data-testid="stExpander"] details{
   background: #FFFFFF !important;
   border: 1px solid rgba(0,0,0,0.08) !important;
