@@ -98,31 +98,26 @@ input, textarea {
 [data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
 [data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
 
-/* Make camera preview responsive */
+/* Make camera preview responsive (Default Portrait) */
 div[data-testid="stCameraInput"] video,
-div[data-testid="stCameraInput"] img{
+div[data-testid="stCameraInput"] img {
   width: 100% !important;
   height: auto !important;
   object-fit: contain !important;
 }
 
-/* ✅ HARD-LOCK camera preview height (NO RESIZE on rotate) */
-:root { --cam-fixed-h: 180px; }   /* 👈 change this if you want (ex: 180px / 220px) */
-
-@media (max-width: 960px) {
+/* FIX: Mobile Landscape Mode */
+/* When screen is landscape and short (mobile), limit height and let width adjust */
+@media only screen and (orientation: landscape) and (max-height: 500px) {
   div[data-testid="stCameraInput"] video,
-  div[data-testid="stCameraInput"] img,
-  div[data-testid="stCameraInput"] canvas {
-    height: var(--cam-fixed-h) !important;
-    min-height: var(--cam-fixed-h) !important;
-    max-height: var(--cam-fixed-h) !important;
-    width: 100% !important;
-    object-fit: contain !important;
-    background: #111827 !important;
-    border-radius: 10px !important;
+  div[data-testid="stCameraInput"] img {
+    width: auto !important;       /* Stop forcing full width */
+    height: auto !important;      /* Reset auto height */
+    max-height: 70vh !important;  /* LIMIT height to 70% of the screen */
+    margin: 0 auto !important;    /* Center the camera in the middle */
+    display: block !important;
   }
 }
-
 
 /* Buttons */
 .stButton > button {
@@ -920,6 +915,3 @@ if st.button("💾 Subir fotos", type="primary"):
     except Exception as e:
         st.error("❌ Error inesperado.")
         st.code(str(e))
-
-
-
