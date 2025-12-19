@@ -106,21 +106,23 @@ div[data-testid="stCameraInput"] img{
   object-fit: contain !important;
 }
 
-/* ✅ FIXED camera preview height on phones (portrait + landscape)
-   This prevents the camera container from resizing when rotating */
-@media (max-width: 960px) {
+/* ✅ HARD-LOCK camera preview height (NO RESIZE on rotate) */
+:root { --cam-fixed-h: 200px; }   /* 👈 change this if you want (ex: 180px / 220px) */
+
+@media (max-width: 1024px) {
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img,
   div[data-testid="stCameraInput"] canvas {
-    height: 180px !important;      /* 👈 fixed height (change if you want) */
-    max-height: 220px !important;
-    min-height: 150px !important;
+    height: var(--cam-fixed-h) !important;
+    min-height: var(--cam-fixed-h) !important;
+    max-height: var(--cam-fixed-h) !important;
     width: 100% !important;
     object-fit: contain !important;
     background: #111827 !important;
     border-radius: 12px !important;
   }
 }
+
 
 /* Buttons */
 .stButton > button {
@@ -918,4 +920,5 @@ if st.button("💾 Subir fotos", type="primary"):
     except Exception as e:
         st.error("❌ Error inesperado.")
         st.code(str(e))
+
 
