@@ -107,9 +107,9 @@ div[data-testid="stCameraInput"] img{
 }
 
 /* ✅ HARD-LOCK camera preview height (NO RESIZE on rotate) */
-:root { --cam-fixed-h: 200px; }   /* 👈 change this if you want (ex: 180px / 220px) */
+:root { --cam-fixed-h: 180px; }   /* 👈 change this if you want (ex: 180px / 220px) */
 
-@media (max-width: 1024px) {
+@media (max-width: 960px) {
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img,
   div[data-testid="stCameraInput"] canvas {
@@ -119,7 +119,7 @@ div[data-testid="stCameraInput"] img{
     width: 100% !important;
     object-fit: contain !important;
     background: #111827 !important;
-    border-radius: 12px !important;
+    border-radius: 10px !important;
   }
 }
 
@@ -920,5 +920,6 @@ if st.button("💾 Subir fotos", type="primary"):
     except Exception as e:
         st.error("❌ Error inesperado.")
         st.code(str(e))
+
 
 
