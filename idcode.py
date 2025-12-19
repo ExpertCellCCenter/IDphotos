@@ -31,7 +31,7 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE (UPDATED FIX FOR PREVIEW & CLEAR BUTTON)
+# STYLE (UPDATED FIX FOR PREVIEW & BUTTONS)
 # ----------------------------------------------------
 st.markdown(
     """
@@ -91,9 +91,7 @@ input, textarea {
 }
 [data-testid="stCameraInput"] *{ color: #0B0F14 !important; }
 
-/* SHUTTER BUTTON (The "Take Photo" button)
-   Logic: It is a button that does NOT contain an SVG icon. 
-*/
+/* SHUTTER BUTTON (The "Take Photo" button) */
 [data-testid="stCameraInput"] button:not(:has(svg)) {
   background: #00A8E0 !important;
   color: #FFFFFF !important;
@@ -102,7 +100,7 @@ input, textarea {
   font-weight: 800 !important;
   padding: 0.55rem 1rem !important;
   z-index: 999 !important;
-  position: relative !important; /* Default for portrait */
+  position: relative !important;
 }
 [data-testid="stCameraInput"] button:not(:has(svg)):hover { 
   filter: brightness(0.95) !important; 
@@ -111,15 +109,13 @@ input, textarea {
   color: #FFFFFF !important; 
 }
 
-/* SWITCH CAMERA & CLEAR PHOTO BUTTONS
-   Logic: These are buttons that DO contain an SVG icon.
-*/
+/* SWITCH CAMERA & CLEAR PHOTO BUTTONS (Buttons with icons) */
 [data-testid="stCameraInput"] button:has(svg) {
-  background: rgba(0,0,0,0.5) !important; /* Semi-transparent backing */
+  background: rgba(0,0,0,0.5) !important;
   border: 1px solid rgba(255,255,255,0.3) !important;
   border-radius: 8px !important;
   padding: 8px 12px !important;
-  z-index: 1000 !important; /* Above everything */
+  z-index: 1000 !important;
   opacity: 1 !important;
   display: flex !important;
   align-items: center !important;
@@ -148,7 +144,6 @@ div[data-testid="stCameraInput"] img{
 }
 
 /* --- MOBILE LANDSCAPE FIX --- */
-/* Only applies when screen is landscape and height is small (like a phone) */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
   
   /* 1. Force container to use specific height */
@@ -159,20 +154,12 @@ div[data-testid="stCameraInput"] img{
     aspect-ratio: unset !important;
     min-height: unset !important;
     padding: 0 !important;
-    background: #000000 !important; /* Black background for correct letterboxing */
+    background: #000000 !important; /* Black background for letterboxing */
     border: none !important;
   }
 
-  /* 2. LIVE VIDEO: Fill the container (zoom to cover) */
-  div[data-testid="stCameraInput"] video {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important; 
-    border-radius: 0 !important;
-    margin: 0 !important;
-  }
-  
-  /* 3. CAPTURED IMAGE: Show fully and accurately (contain) */
+  /* 2. Force video AND image to be contained, not covered (ACCURATE PREVIEW) */
+  div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
     width: 100% !important;
     height: 100% !important;
@@ -181,7 +168,7 @@ div[data-testid="stCameraInput"] img{
     margin: 0 !important;
   }
 
-  /* 4. FLOAT THE SHUTTER BUTTON (Bottom Center) */
+  /* 3. FLOAT THE SHUTTER BUTTON (Bottom Center) */
   div[data-testid="stCameraInput"] button:not(:has(svg)) {
     position: absolute !important;
     bottom: 20px !important;
@@ -191,11 +178,11 @@ div[data-testid="stCameraInput"] img{
     box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
   }
 
-  /* 5. FLOAT SWITCH/CLEAR BUTTONS (Top Left) */
+  /* 4. FLOAT SWITCH/CLEAR BUTTONS (Top Left - VISIBLE) */
   div[data-testid="stCameraInput"] button:has(svg) {
     position: absolute !important;
     top: 15px !important;
-    left: 15px !important;
+    left: 15px !important; /* Moved to left */
     right: auto !important;
     bottom: auto !important;
     transform: none !important;
@@ -205,7 +192,7 @@ div[data-testid="stCameraInput"] img{
   }
 }
 
-/* Standard Buttons (outside camera) */
+/* Standard Buttons */
 .stButton > button {
   background: #00A8E0 !important;
   color: #FFFFFF !important;
