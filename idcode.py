@@ -31,7 +31,7 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE (CRITICAL FIXES FOR ACCURATE PREVIEW)
+# STYLE (CRITICAL FIXES)
 # ----------------------------------------------------
 st.markdown(
     """
@@ -47,10 +47,8 @@ div[data-testid="stAppViewContainer"] {padding-top: 0rem !important;}
 [data-testid="stAppViewContainer"]{ background: #ffffff !important; }
 section[data-testid="stSidebar"]{ background: #F5F7FA !important; }
 
-/* Text */
+/* Text & Inputs */
 h1, h2, h3, h4, h5, h6, p, li, label, span, div { color: #0B0F14 !important; }
-
-/* Inputs */
 input, textarea {
   background: #FFFFFF !important;
   color: #0B0F14 !important;
@@ -80,29 +78,31 @@ input, textarea {
 }
 
 /* ==================================================
-   CAMERA STYLING FIXES
+   CAMERA STYLING FIXES (ACCURATE PREVIEW)
    ================================================== */
 
-/* 1. Base Container */
+/* 1. Main Camera Container */
 [data-testid="stCameraInput"]{
+  width: 100% !important;
   background: #000000 !important; /* Black background for letterboxing */
-  border: 1px dashed rgba(0,0,0,0.20) !important;
   border-radius: 14px !important;
   position: relative !important; 
-  overflow: visible !important;
+  overflow: hidden !important; /* Keep everything contained */
 }
 
-/* 2. FIDELITY FIX (PORTRAIT/DEFAULT)
-   Force both the live video and the captured image to 'contain'.
-   This ensures the preview is always accurate to the final photo. */
-div[data-testid="stCameraInput"] video,
-div[data-testid="stCameraInput"] img {
+/* 2. THE VIDEO FEED (Streaming) & IMAGE PREVIEW (Captured)
+   CRITICAL FIX: 'object-fit: contain' ensures the WHOLE sensor view 
+   is visible. It prevents zooming/cropping. */
+[data-testid="stCameraInput"] video,
+[data-testid="stCameraInput"] img {
   width: 100% !important;
   height: auto !important;
-  object-fit: contain !important; /* CRITICAL: Shows the full frame */
+  min-height: 50vh !important; /* Ensure it has height */
+  object-fit: contain !important; /* This stops the cropping */
 }
 
-/* 3. THE SHUTTER BUTTON ("Take Photo") */
+/* 3. SHUTTER BUTTON ('Take Photo')
+   Targeting the main action button */
 [data-testid="stCameraInput"] button:not(:has(svg)) {
   background: #00A8E0 !important;
   color: #FFFFFF !important;
@@ -116,7 +116,8 @@ div[data-testid="stCameraInput"] img {
 [data-testid="stCameraInput"] button:not(:has(svg)):hover { filter: brightness(0.95) !important; }
 [data-testid="stCameraInput"] button:not(:has(svg)) * { color: #FFFFFF !important; }
 
-/* 4. SWITCH CAMERA & CLEAR PHOTO BUTTONS */
+/* 4. SWITCH CAMERA & CLEAR PHOTO BUTTONS
+   These usually contain SVGs. We force them to be visible on top. */
 [data-testid="stCameraInput"] button:has(svg) {
   background: rgba(0,0,0,0.6) !important;
   border: 1px solid rgba(255,255,255,0.6) !important;
@@ -132,44 +133,43 @@ div[data-testid="stCameraInput"] img {
   background: rgba(0,0,0,0.8) !important;
 }
 
-/* --- MOBILE LANDSCAPE MODE SPECIFIC FIXES --- */
+/* --- MOBILE LANDSCAPE SPECIFIC --- 
+   This applies when the phone is turned sideways */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
 
-  /* A. Main Container Size */
+  /* A. Maximize Container */
   div[data-testid="stCameraInput"],
   div[data-testid="stCameraInput"] > div {
+    height: 85vh !important; /* Use almost full screen height */
     width: 100% !important;
-    height: 85vh !important;
-    aspect-ratio: unset !important;
-    min-height: unset !important;
-    padding: 0 !important;
     background: #000000 !important;
     border: none !important;
-    display: block !important;
+    display: flex !important;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
   }
 
-  /* B. FIDELITY FIX (LANDSCAPE)
-     Ensure 'contain' is also used here for accurate preview. */
+  /* B. Video Fidelity - FORCE CONTAIN */
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
-    width: 100% !important;
     height: 100% !important;
-    object-fit: contain !important; /* CRITICAL: Shows the full frame */
-    border-radius: 0 !important;
-    margin: 0 !important;
+    width: 100% !important;
+    object-fit: contain !important; /* CRITICAL */
   }
 
-  /* C. Position the "Take Photo" button */
+  /* C. Floating 'Take Photo' Button (Bottom Center) */
   div[data-testid="stCameraInput"] button:not(:has(svg)) {
     position: absolute !important;
-    bottom: 15px !important;
+    bottom: 20px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
     width: auto !important;
-    min-width: 200px !important;
+    min-width: 150px !important;
+    white-space: nowrap !important;
   }
 
-  /* D. Position "Switch Camera" & "Clear Photo" */
+  /* D. Floating 'Switch Camera' (Top Right) */
   div[data-testid="stCameraInput"] button:has(svg) {
     position: absolute !important;
     top: 15px !important;
@@ -180,7 +180,7 @@ div[data-testid="stCameraInput"] img {
   }
 }
 
-/* Standard Buttons */
+/* Standard Buttons (outside camera) */
 .stButton > button {
   background: #00A8E0 !important;
   color: #FFFFFF !important;
@@ -572,20 +572,14 @@ if uploaded_files:
 
 st.markdown("---")
 st.subheader("📸 Cámara")
-# Generate a unique key to force reload if needed, but for now a static one is fine
-camera_photo = st.camera_input("Toma foto", key="camera_input_widget")
+camera_photo = st.camera_input("Toma foto", key="camera_input")
 
 c1, c2, c3 = st.columns(3)
-# Use state variables to track button presses to avoid rerun issues
 if c1.button("➕ Agregar foto"):
     if camera_photo:
         st.session_state.camera_photos.append({"bytes": camera_photo.getvalue(), "mime": camera_photo.type})
         st.success("Foto agregada")
-        # Optional: rerun to clear the camera input, but might cause flickering
-        # st.rerun() 
-    else:
-        st.warning("Toma una foto primero")
-
+        st.rerun()
 if c2.button("🗑️ Borrar fotos"):
     st.session_state.camera_photos = []
     st.rerun()
