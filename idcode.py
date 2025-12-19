@@ -123,12 +123,15 @@ div[data-testid="stCameraInput"] img{
     /* Center horizontally */
     margin: 0 auto !important;
     display: block !important;
+    /* FIX: Change contain to cover to remove borders */
+    object-fit: cover !important;
   }
 
-  /* 2. Ensure the container centers its content */
+  /* 2. Ensure the container centers its content and has no background */
   div[data-testid="stCameraInput"] > div {
       text-align: center !important;
       width: 100% !important;
+      background-color: transparent !important;
   }
 }
 
