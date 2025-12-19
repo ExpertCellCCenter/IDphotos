@@ -108,7 +108,7 @@ div[data-testid="stCameraInput"] img{
 
 /* ✅ FIXED camera preview height on phones (portrait + landscape)
    This prevents the camera container from resizing when rotating */
-@media (max-width: 1024px) {
+@media (max-width: 960px) {
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img,
   div[data-testid="stCameraInput"] canvas {
@@ -918,3 +918,4 @@ if st.button("💾 Subir fotos", type="primary"):
     except Exception as e:
         st.error("❌ Error inesperado.")
         st.code(str(e))
+
