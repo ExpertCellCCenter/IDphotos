@@ -1,4 +1,3 @@
-# app.py
 import re
 import io
 import hashlib
@@ -32,7 +31,7 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE
+# STYLE (UPDATED FIX)
 # ----------------------------------------------------
 st.markdown(
     """
@@ -86,15 +85,17 @@ input, textarea {
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.20) !important;
   border-radius: 14px !important;
+  /* Critical: allows absolute positioning of the button inside */
+  position: relative !important; 
 }
 [data-testid="stCameraInput"] *{ color: #0B0F14 !important; }
+
 [data-testid="stCameraInput"] button{
   background: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 12px !important;
   font-weight: 800 !important;
-  /* Ensure button is always visible in landscape */
   z-index: 999 !important;
   position: relative !important;
 }
@@ -113,26 +114,36 @@ div[data-testid="stCameraInput"] img{
 /* Only applies when screen is landscape and height is small (like a phone) */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
   
-  /* 1. Force container to use specific height and disable Streamlit's aspect ratio */
+  /* 1. Force container to use specific height */
   div[data-testid="stCameraInput"],
   div[data-testid="stCameraInput"] > div {
     width: 100% !important;
-    height: 70vh !important;  /* Reserve vertical space for button */
-    aspect-ratio: unset !important; /* Critical to remove gray bars */
+    height: 80vh !important;
+    aspect-ratio: unset !important;
     min-height: unset !important;
     padding: 0 !important;
     background: transparent !important;
+    border: none !important;
   }
 
-  /* 2. Force video to fill that container completely by ZOOMING/CROPPING (cover) */
+  /* 2. Force video to fill that container completely (cover) */
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
     width: 100% !important;
     height: 100% !important;
-    /* 'cover' eliminates borders by zooming the video to fill the box */
     object-fit: cover !important; 
     border-radius: 0 !important;
     margin: 0 !important;
+  }
+
+  /* 3. FLOAT THE BUTTON */
+  div[data-testid="stCameraInput"] button {
+    position: absolute !important;
+    bottom: 20px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    z-index: 9999 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
   }
 }
 
