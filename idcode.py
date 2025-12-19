@@ -10,7 +10,6 @@ import streamlit.components.v1 as components
 import requests
 from PIL import Image, ImageOps
 
-# PDF
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.utils import ImageReader
@@ -81,49 +80,37 @@ input, textarea {
 }
 
 /* -----------------------------
-   ✅ CAMERA SHELL: WIDTH LOCK (already good)
+   ✅ CAMERA: FIXED HEIGHT on MOBILE (portrait + landscape)
+   - width stays nice and centered
+   - height does NOT grow when rotating
 ------------------------------ */
 .camera-shell{
-  width: min(480px, 100%) !important;
-  max-width: 480px !important;
+  width: min(520px, 100%) !important;
+  max-width: 520px !important;
   margin-left: auto !important;
   margin-right: auto !important;
 }
 
-/* On landscape phones/tablets: keep it SMALL and STABLE (does NOT expand full width) */
-@media (orientation: landscape) and (max-width: 1400px){
-  .camera-shell{
-    width: min(480px, 92vw) !important;
-    max-width: 480px !important;
-  }
-}
-
-/* Make Streamlit camera widget obey the wrapper */
+/* Base (desktop/tablet) */
 .camera-shell [data-testid="stCameraInput"]{
-  width: 100% !important;
-  max-width: 100% !important;
-  margin: 0 auto !important;
-
+  --cam-preview-h: 320px;  /* desktop default */
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.20) !important;
   border-radius: 14px !important;
-
-  /* ✅ Reduce height overall (en lo alto) by reducing preview height */
-  --cam-preview-h: 240px; /* portrait default (smaller than before) */
   padding: 10px 12px !important;
 }
 
-/* ✅ Landscape: MUCH smaller preview so user can frame & see the Take Photo button */
-@media (orientation: landscape) and (max-width: 1400px){
+/* ✅ Phones: fixed preview height ALWAYS (portrait + landscape) */
+@media (max-width: 900px){
   .camera-shell [data-testid="stCameraInput"]{
-    --cam-preview-h: 140px;   /* <<< THIS is the key height reduction */
+    --cam-preview-h: 180px;  /* <<< fixed, stable, smaller */
     padding: 8px 10px !important;
   }
 }
 
-/* ✅ Preview area sizing */
-.camera-shell [data-testid="stCameraInput"] video,
+/* Force the preview area to obey our height (image after capture OR video preview) */
 .camera-shell [data-testid="stCameraInput"] img,
+.camera-shell [data-testid="stCameraInput"] video,
 .camera-shell [data-testid="stCameraInput"] canvas{
   width: 100% !important;
   height: var(--cam-preview-h) !important;
@@ -137,18 +124,32 @@ input, textarea {
   background: #111827 !important;
 }
 
-/* ✅ FORCE "TAKE PHOTO" BUTTON to be BLUE and visible */
-.camera-shell [data-testid="stCameraInput"] button{
-  background-color: #00A8E0 !important;
+/* ✅ Also clamp any wrapper divs inside camera widget so it won’t “grow” */
+.camera-shell [data-testid="stCameraInput"] > div{
+  max-height: calc(var(--cam-preview-h) + 120px) !important; /* preview + button area */
+}
+
+/* -----------------------------
+   ✅ "Take Photo" button: ORIGINAL BLUE look (like you had)
+   iOS Safari sometimes overrides -> force appearance
+------------------------------ */
+.camera-shell [data-testid="stCameraInput"] button,
+.camera-shell [data-testid="stCameraInput"] [role="button"],
+.camera-shell [data-testid="stCameraInput"] label {
+  background: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
   border-radius: 12px !important;
-  font-weight: 900 !important;
-  height: 48px !important;
-  padding: 0.55rem 1rem !important;
-  margin-top: 10px !important;
+  font-weight: 800 !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  opacity: 1 !important;
+  filter: none !important;
 }
-.camera-shell [data-testid="stCameraInput"] button *{
+
+.camera-shell [data-testid="stCameraInput"] button *,
+.camera-shell [data-testid="stCameraInput"] [role="button"] *,
+.camera-shell [data-testid="stCameraInput"] label *{
   color: #FFFFFF !important;
 }
 
@@ -170,9 +171,7 @@ input, textarea {
   color: #0B0F14 !important;
 }
 
-/* -----------------------------
-   EXPANDERS
------------------------------- */
+/* Expanders */
 div[data-testid="stExpander"] details{
   background: #FFFFFF !important;
   border: 1px solid rgba(0,0,0,0.08) !important;
@@ -246,7 +245,7 @@ div[data-testid="stExpander"] details > div{ padding: 10px 12px !important; }
     unsafe_allow_html=True,
 )
 
-# Anchor always present (helps scrollIntoView on mobile)
+# Anchor always present
 st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
 
 # ----------------------------------------------------
@@ -261,18 +260,11 @@ def scroll_to_top():
               try { doc.getElementById("top-anchor")?.scrollIntoView({block:"start"}); } catch(e) {}
               try { doc.documentElement.scrollTop = 0; } catch(e) {}
               try { doc.body.scrollTop = 0; } catch(e) {}
-              try { doc.querySelector('[data-testid="stAppViewContainer"]')?.scrollTo(0,0); } catch(e) {}
-              try { doc.querySelector('[data-testid="stAppViewContainer"]')?.scrollTop = 0; } catch(e) {}
-              try { doc.querySelector('section.main')?.scrollTo(0,0); } catch(e) {}
-              try { doc.querySelector('section.main')?.scrollTop = 0; } catch(e) {}
-              try { doc.querySelector('div[data-testid="stMainBlockContainer"]')?.scrollTo(0,0); } catch(e) {}
-              try { doc.querySelector('div[data-testid="stMainBlockContainer"]')?.scrollTop = 0; } catch(e) {}
             }
             function run() {
               try { window.scrollTo(0,0); } catch(e) {}
               try { doScroll(document); } catch(e) {}
               try { doScroll(window.parent.document); } catch(e) {}
-              try { window.parent.scrollTo(0,0); } catch(e) {}
             }
             run();
             setTimeout(run, 50);
@@ -285,7 +277,7 @@ def scroll_to_top():
     )
 
 # ----------------------------------------------------
-# BRAND HEADER
+# HEADER
 # ----------------------------------------------------
 def render_header():
     logo_path = Path(__file__).parent / "att_logo.png"
@@ -309,7 +301,6 @@ def render_header():
         )
 
     st.markdown('<div class="hr-soft"></div>', unsafe_allow_html=True)
-
     st.markdown(
         """
 1) Escribe el **folio** de tu cotización (formato: `251215-0FF480`)  
@@ -676,7 +667,7 @@ if st.session_state.gallery_photos:
 st.markdown("---")
 
 # --------------------
-# CAMERA (MULTI)  ✅ WRAPPED
+# CAMERA (MULTI)
 # --------------------
 st.subheader("📸 Tomar fotos con la cámara (puedes tomar varias)")
 
@@ -716,7 +707,7 @@ if st.session_state.camera_photos:
 st.markdown("---")
 
 # --------------------
-# UPLOAD BUTTON
+# UPLOAD
 # --------------------
 if st.button("💾 Subir fotos", type="primary"):
     if (not st.session_state.gallery_photos) and (not st.session_state.camera_photos):
