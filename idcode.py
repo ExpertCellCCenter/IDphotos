@@ -112,35 +112,27 @@ div[data-testid="stCameraInput"] img{
 /* --- MOBILE LANDSCAPE FIX --- */
 /* Only applies when screen is landscape and height is small (like a phone) */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
-
-  /* 1. Reset the main container wrapper to remove padding/borders */
-  [data-testid="stCameraInput"] {
-    background: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-    margin-bottom: 10px !important; /* Add slight space above button */
-  }
-
-  /* 2. Target the direct wrapper of the video to remove background colors */
-  [data-testid="stCameraInput"] > div {
-    background-color: transparent !important;
+  
+  /* 1. Force container to use specific height and disable Streamlit's aspect ratio */
+  div[data-testid="stCameraInput"],
+  div[data-testid="stCameraInput"] > div {
     width: 100% !important;
-    margin: 0 auto !important;
-    border: none !important;
+    height: 70vh !important;  /* Reserve vertical space for button */
+    aspect-ratio: unset !important; /* Critical to remove gray bars */
+    min-height: unset !important;
+    padding: 0 !important;
+    background: transparent !important;
   }
 
-  /* 3. Force video/image to cover the area and limit height */
+  /* 2. Force video to fill that container completely by ZOOMING/CROPPING (cover) */
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
     width: 100% !important;
-    height: auto !important;
-    /* Limit height so button fits. 70vh is usually a good balance. */
-    max-height: 70vh !important;
-    /* KEY: 'cover' zooms in to fill space, removing borders */
-    object-fit: cover !important;
-    margin: 0 auto !important;
-    display: block !important;
-    border-radius: 12px !important; /* Optional: nice rounded corners */
+    height: 100% !important;
+    /* 'cover' eliminates borders by zooming the video to fill the box */
+    object-fit: cover !important; 
+    border-radius: 0 !important;
+    margin: 0 !important;
   }
 }
 
@@ -304,9 +296,9 @@ def render_header():
 
     st.markdown(
         """
-1) Escribe el **folio** de tu cotización (formato: `251215-0FF480`)
-2) Sube fotos desde tu galería **y/o** toma fotos con la cámara (puedes tomar varias)
-3) Presiona **Subir fotos** → se subirán al sistema
+1) Escribe el **folio** de tu cotización (formato: `251215-0FF480`)  
+2) Sube fotos desde tu galería **y/o** toma fotos con la cámara (puedes tomar varias)  
+3) Presiona **Subir fotos** → se subirán al sistema   
 """
     )
 
