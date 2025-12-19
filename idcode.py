@@ -31,7 +31,7 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE (UPDATED FIX FOR SWITCH CAMERA)
+# STYLE (UPDATED FIX FOR PREVIEW & CLEAR BUTTON)
 # ----------------------------------------------------
 st.markdown(
     """
@@ -111,24 +111,27 @@ input, textarea {
   color: #FFFFFF !important; 
 }
 
-/* SWITCH CAMERA BUTTON (The Icon)
-   Logic: It is a button that DOES contain an SVG icon.
+/* SWITCH CAMERA & CLEAR PHOTO BUTTONS
+   Logic: These are buttons that DO contain an SVG icon.
 */
 [data-testid="stCameraInput"] button:has(svg) {
-  background: rgba(0,0,0,0.4) !important; /* Semi-transparent backing */
-  border: 1px solid rgba(255,255,255,0.4) !important;
-  border-radius: 50% !important;
-  width: 40px !important;
-  height: 40px !important;
+  background: rgba(0,0,0,0.5) !important; /* Semi-transparent backing */
+  border: 1px solid rgba(255,255,255,0.3) !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
   z-index: 1000 !important; /* Above everything */
-  /* Ensure it doesn't get hidden */
   opacity: 1 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  gap: 8px !important;
 }
 [data-testid="stCameraInput"] button:has(svg):hover {
-  background: rgba(0,0,0,0.6) !important;
+  background: rgba(0,0,0,0.7) !important;
+}
+[data-testid="stCameraInput"] button:has(svg) * {
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
 }
 [data-testid="stCameraInput"] button:has(svg) svg {
   fill: white !important;
@@ -156,21 +159,29 @@ div[data-testid="stCameraInput"] img{
     aspect-ratio: unset !important;
     min-height: unset !important;
     padding: 0 !important;
-    background: transparent !important;
+    background: #000000 !important; /* Black background for correct letterboxing */
     border: none !important;
   }
 
-  /* 2. Force video to fill that container completely (cover) */
-  div[data-testid="stCameraInput"] video,
-  div[data-testid="stCameraInput"] img {
+  /* 2. LIVE VIDEO: Fill the container (zoom to cover) */
+  div[data-testid="stCameraInput"] video {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important; 
     border-radius: 0 !important;
     margin: 0 !important;
   }
+  
+  /* 3. CAPTURED IMAGE: Show fully and accurately (contain) */
+  div[data-testid="stCameraInput"] img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important; /* Fidedigno */
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
 
-  /* 3. FLOAT THE SHUTTER BUTTON (Bottom Center) */
+  /* 4. FLOAT THE SHUTTER BUTTON (Bottom Center) */
   div[data-testid="stCameraInput"] button:not(:has(svg)) {
     position: absolute !important;
     bottom: 20px !important;
@@ -180,15 +191,17 @@ div[data-testid="stCameraInput"] img{
     box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
   }
 
-  /* 4. FLOAT THE SWITCH CAMERA BUTTON (Top Right) */
+  /* 5. FLOAT SWITCH/CLEAR BUTTONS (Top Left) */
   div[data-testid="stCameraInput"] button:has(svg) {
     position: absolute !important;
     top: 15px !important;
-    right: 15px !important;
+    left: 15px !important;
+    right: auto !important;
     bottom: auto !important;
-    left: auto !important;
     transform: none !important;
     z-index: 10000 !important;
+    width: auto !important;
+    height: auto !important;
   }
 }
 
