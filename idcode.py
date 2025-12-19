@@ -551,7 +551,6 @@ col_input, col_btn = st.columns([3, 1], vertical_alignment="bottom")
 with col_input:
     folio_input = st.text_input("Folio de la cotización", placeholder="Ej. 251215-0FF480")
 with col_btn:
-    # Button just triggers rerun/submit
     st.button("Continuar", use_container_width=True)
 
 folio = normalize_folio(folio_input)
@@ -574,13 +573,23 @@ if uploaded_files:
 
 # --- 2. AUTO-EXPAND GALLERY PREVIEW ---
 if st.session_state.gallery_photos:
-    with st.expander("Ver vista previa de fotos seleccionadas", expanded=True): # Expanded by default
+    with st.expander("Ver vista previa de fotos seleccionadas", expanded=True):
         cols = st.columns(3)
         for idx, item in enumerate(st.session_state.gallery_photos):
             cols[idx % 3].image(item["bytes"], caption=f"Foto #{idx+1}", use_container_width=True)
 
 st.markdown("---")
 st.subheader("📸 Cámara")
+
+# --- 3. INSTRUCTIONS LEGEND ---
+st.markdown("""
+> **Instrucciones para tomar fotos:**
+> 1.  📸 **Toma la foto** presionando el botón de la cámara (azul).
+> 2.  ➕ Si la foto se ve bien, presiona **"Agregar foto"** para guardarla.
+> 3.  🔁 Repite los pasos para tomar más fotos.
+> 4.  🗑️ Si quieres empezar de nuevo, usa **"Borrar fotos"**.
+""")
+
 camera_photo = st.camera_input("Toma foto", key="camera_input")
 
 c1, c2, c3 = st.columns(3)
@@ -594,9 +603,9 @@ if c2.button("🗑️ Borrar fotos"):
     st.rerun()
 c3.metric("Tomadas", len(st.session_state.camera_photos))
 
-# --- 3. AUTO-EXPAND CAMERA PREVIEW ---
+# --- 4. AUTO-EXPAND CAMERA PREVIEW ---
 if st.session_state.camera_photos:
-    with st.expander("Ver fotos tomadas", expanded=True): # Expanded by default
+    with st.expander("Ver fotos tomadas", expanded=True):
         cols = st.columns(3)
         for i, p in enumerate(st.session_state.camera_photos):
             img = normalize_for_preview(p["bytes"], "camera")
