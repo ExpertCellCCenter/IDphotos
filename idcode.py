@@ -95,7 +95,7 @@ input, textarea {
   border-radius: 12px !important;
   font-weight: 800 !important;
   /* Ensure button is always visible in landscape */
-  z-index: 999 !important; 
+  z-index: 999 !important;
   position: relative !important;
 }
 [data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
@@ -113,22 +113,23 @@ div[data-testid="stCameraInput"] img{
 /* Only applies when screen is landscape and height is small (like a phone) */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
   
-  /* 1. Force the CONTAINER to fill width but restrict height */
-  div[data-testid="stCameraInput"] {
-    width: 100% !important;       /* Go full width to remove side gaps */
-    height: 65vh !important;      /* Limit height so button fits below */
-    min-height: auto !important;
-    background: transparent !important; /* Ensure no gray background shows */
-    overflow: hidden !important;  /* Clip anything spilling out */
-  }
-
-  /* 2. Force the VIDEO to stretch and fill the container completely */
+  /* 1. Target the VIDEO element directly */
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
     width: 100% !important;
-    height: 100% !important;
+    /* Limit the video's height so there is room for the button below it */
+    max-height: 60vh !important;
     /* 'cover' zooms the video in to fill the box, removing black/gray bars */
-    object-fit: cover !important; 
+    object-fit: cover !important;
+    margin: 0 auto !important;
+    display: block !important;
+  }
+
+  /* 2. Ensure the container centers its content and has no background */
+  div[data-testid="stCameraInput"] > div {
+      text-align: center !important;
+      width: 100% !important;
+      background-color: transparent !important;
   }
 }
 
@@ -292,9 +293,9 @@ def render_header():
 
     st.markdown(
         """
-1) Escribe el **folio** de tu cotización (formato: `251215-0FF480`)  
-2) Sube fotos desde tu galería **y/o** toma fotos con la cámara (puedes tomar varias)  
-3) Presiona **Subir fotos** → se subirán al sistema   
+1) Escribe el **folio** de tu cotización (formato: `251215-0FF480`)
+2) Sube fotos desde tu galería **y/o** toma fotos con la cámara (puedes tomar varias)
+3) Presiona **Subir fotos** → se subirán al sistema
 """
     )
 
