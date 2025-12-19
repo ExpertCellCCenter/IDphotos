@@ -31,7 +31,7 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE (FIXED: UN-CROPPED VIDEO & BLUE BUTTONS)
+# STYLE (FIXED: UN-CROPPED VIDEO & ALL BLUE BUTTONS)
 # ----------------------------------------------------
 st.markdown(
     """
@@ -88,11 +88,12 @@ input, textarea {
   border-radius: 14px !important;
   position: relative !important; 
   overflow: hidden !important; 
+  aspect-ratio: unset !important; /* Disable default aspect ratio enforcement */
 }
 
-/* 2. THE VIDEO FEED (Streaming) & IMAGE PREVIEW (Captured)
+/* 2. THE VIDEO FEED & PREVIEW IMAGE
    CRITICAL: 'object-fit: contain' ensures NO CROPPING. 
-   It shows the full sensor output. */
+   It shows the full sensor output. You will see black bars (letterboxing). */
 [data-testid="stCameraInput"] video,
 [data-testid="stCameraInput"] img {
   width: 100% !important;
@@ -101,36 +102,35 @@ input, textarea {
   object-fit: contain !important; /* Forces the original, uncropped view */
 }
 
-/* 3. SHUTTER BUTTON ('Take Photo') */
-[data-testid="stCameraInput"] button:not(:has(svg)) {
+/* 3. ALL BUTTONS INSIDE CAMERA (Take Photo, Clear, Switch) 
+   Force them all to be BLUE (#00A8E0) */
+[data-testid="stCameraInput"] button {
   background: #00A8E0 !important;
   color: #FFFFFF !important;
   border: 0 !important;
-  border-radius: 12px !important;
-  font-weight: 800 !important;
-  padding: 0.55rem 1rem !important;
-  z-index: 998 !important;
-  position: relative !important;
-}
-[data-testid="stCameraInput"] button:not(:has(svg)):hover { filter: brightness(0.95) !important; }
-[data-testid="stCameraInput"] button:not(:has(svg)) * { color: #FFFFFF !important; }
-
-/* 4. SWITCH CAMERA & CLEAR PHOTO BUTTONS
-   UPDATED: Now using the BRAND BLUE background */
-[data-testid="stCameraInput"] button:has(svg) {
-  background: #00A8E0 !important; /* Blue background */
-  border: 1px solid rgba(255,255,255,0.2) !important;
   border-radius: 8px !important;
-  z-index: 9999 !important;
-  opacity: 1 !important;
-  color: #FFFFFF !important;
+  font-weight: 800 !important;
+  z-index: 9999 !important; /* Ensure they are on top of video */
 }
-[data-testid="stCameraInput"] button:has(svg) svg {
+[data-testid="stCameraInput"] button:hover {
+  filter: brightness(0.95) !important;
+}
+[data-testid="stCameraInput"] button svg {
   fill: white !important;
   stroke: white !important;
+  color: white !important;
 }
-[data-testid="stCameraInput"] button:has(svg):hover {
-  filter: brightness(0.95) !important;
+
+/* 4. Position Specifics: SHUTTER BUTTON ('Take Photo') */
+[data-testid="stCameraInput"] button:not(:has(svg)) {
+  padding: 0.55rem 1rem !important;
+  position: relative !important;
+}
+
+/* 5. Position Specifics: ICON BUTTONS (Switch/Clear) */
+[data-testid="stCameraInput"] button:has(svg) {
+  padding: 8px 12px !important;
+  border: 1px solid rgba(255,255,255,0.2) !important;
 }
 
 /* --- MOBILE LANDSCAPE SPECIFIC --- */
@@ -139,7 +139,7 @@ input, textarea {
   /* A. Maximize Container */
   div[data-testid="stCameraInput"],
   div[data-testid="stCameraInput"] > div {
-    height: 85vh !important; 
+    height: 90vh !important; 
     width: 100% !important;
     background: #000000 !important;
     border: none !important;
