@@ -98,23 +98,23 @@ input, textarea {
 [data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
 [data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
 
-/* Make camera preview responsive (Default Portrait) */
+/* Make camera preview responsive (Default) */
 div[data-testid="stCameraInput"] video,
-div[data-testid="stCameraInput"] img {
+div[data-testid="stCameraInput"] img{
   width: 100% !important;
   height: auto !important;
   object-fit: contain !important;
 }
 
-/* FIX: Mobile Landscape Mode */
-/* When screen is landscape and short (mobile), limit height and let width adjust */
+/* FIX: Mobile Landscape Mode 
+   When screen is landscape and short (mobile), limit height and let width adjust */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
-    width: auto !important;       /* Stop forcing full width */
-    height: auto !important;      /* Reset auto height */
-    max-height: 70vh !important;  /* LIMIT height to 70% of the screen */
-    margin: 0 auto !important;    /* Center the camera in the middle */
+    width: auto !important;       
+    height: auto !important;      
+    max-height: 70vh !important;  
+    margin: 0 auto !important;    
     display: block !important;
   }
 }
