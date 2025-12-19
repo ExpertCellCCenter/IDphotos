@@ -94,6 +94,9 @@ input, textarea {
   border: 0 !important;
   border-radius: 12px !important;
   font-weight: 800 !important;
+  /* Ensure button is always visible in landscape */
+  z-index: 999 !important; 
+  position: relative !important;
 }
 [data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
 [data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
@@ -110,24 +113,22 @@ div[data-testid="stCameraInput"] img{
 /* Only applies when screen is landscape and height is small (like a phone) */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
   
-  /* 1. Target the container itself */
-  div[data-testid="stCameraInput"] {
-    width: 90% !important;       /* Make it wider */
-    max-width: 600px !important; /* Limit width on larger landscape screens */
-    height: auto !important;
-    max-height: 70vh !important; /* Limit height to keep button visible */
-    margin: 0 auto !important;   /* Center it */
-    padding: 0 !important;       /* Remove padding */
-    background-color: transparent !important; /* Remove dark background */
-    overflow: hidden !important; /* Ensure video doesn't overflow */
-  }
-
-  /* 2. Force the video/image to fill the container without borders */
+  /* 1. Target the video/image element directly */
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important; /* Crop to fill the space, no borders */
+    /* Stop forcing 100% width based on container */
+    width: auto !important;
+    /* Limit height to 60% of screen so there is room for the button below */
+    max-height: 60vh !important;
+    /* Center horizontally */
+    margin: 0 auto !important;
+    display: block !important;
+  }
+
+  /* 2. Ensure the container centers its content */
+  div[data-testid="stCameraInput"] > div {
+      text-align: center !important;
+      width: 100% !important;
   }
 }
 
