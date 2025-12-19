@@ -31,7 +31,7 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE (Original "Perfect" CSS + Progress Bar Tweaks)
+# STYLE (GLOBAL NO-CROP FIX + BLUE BUTTONS)
 # ----------------------------------------------------
 st.markdown(
     """
@@ -78,7 +78,7 @@ input, textarea {
 }
 
 /* ==================================================
-   CAMERA STYLING
+   CAMERA STYLING - GLOBAL FIXES
    ================================================== */
 
 /* 1. Main Camera Container */
@@ -96,7 +96,7 @@ input, textarea {
     height: auto !important;
 }
 
-/* 3. VIDEO & IMAGE PREVIEW (NO CROP) */
+/* 3. VIDEO & IMAGE PREVIEW (NO CROP - FIDEDIGNO) */
 [data-testid="stCameraInput"] video,
 [data-testid="stCameraInput"] img {
   width: 100% !important;
@@ -106,7 +106,7 @@ input, textarea {
   object-fit: contain !important; /* Shows full sensor view */
 }
 
-/* 4. BUTTONS (Blue) */
+/* 4. ALL BUTTONS INSIDE CAMERA (Blue) */
 [data-testid="stCameraInput"] button {
   background: #00A8E0 !important;
   color: #FFFFFF !important;
@@ -546,7 +546,14 @@ if st.session_state.uploaded_ok:
 render_header()
 scroll_to_top()
 
-folio_input = st.text_input("Folio de la cotización", placeholder="Ej. 251215-0FF480")
+# --- 1. FOLIO INPUT WITH "CONTINUAR" BUTTON ---
+col_input, col_btn = st.columns([3, 1], vertical_alignment="bottom")
+with col_input:
+    folio_input = st.text_input("Folio de la cotización", placeholder="Ej. 251215-0FF480")
+with col_btn:
+    # Button just triggers rerun/submit
+    st.button("Continuar", use_container_width=True)
+
 folio = normalize_folio(folio_input)
 
 if not folio:
@@ -565,6 +572,13 @@ uploaded_files = st.file_uploader("Sube fotos", type=["jpg","png","heic"], accep
 if uploaded_files:
     st.session_state.gallery_photos = [{"bytes": f.getvalue(), "mime": f.type, "name": f.name} for f in uploaded_files]
 
+# --- 2. AUTO-EXPAND GALLERY PREVIEW ---
+if st.session_state.gallery_photos:
+    with st.expander("Ver vista previa de fotos seleccionadas", expanded=True): # Expanded by default
+        cols = st.columns(3)
+        for idx, item in enumerate(st.session_state.gallery_photos):
+            cols[idx % 3].image(item["bytes"], caption=f"Foto #{idx+1}", use_container_width=True)
+
 st.markdown("---")
 st.subheader("📸 Cámara")
 camera_photo = st.camera_input("Toma foto", key="camera_input")
@@ -580,8 +594,9 @@ if c2.button("🗑️ Borrar fotos"):
     st.rerun()
 c3.metric("Tomadas", len(st.session_state.camera_photos))
 
+# --- 3. AUTO-EXPAND CAMERA PREVIEW ---
 if st.session_state.camera_photos:
-    with st.expander("Ver fotos tomadas"):
+    with st.expander("Ver fotos tomadas", expanded=True): # Expanded by default
         cols = st.columns(3)
         for i, p in enumerate(st.session_state.camera_photos):
             img = normalize_for_preview(p["bytes"], "camera")
@@ -593,7 +608,7 @@ if st.button("💾 Subir fotos", type="primary"):
         st.error("No hay fotos.")
         st.stop()
     
-    # NEW PROGRESS LOGIC
+    # PROGRESS LOGIC
     status_text = st.empty()
     bar = st.progress(0)
     status_text.markdown("⏳ **Subiendo...**")
