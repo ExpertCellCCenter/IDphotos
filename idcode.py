@@ -9,7 +9,7 @@ import streamlit.components.v1 as components
 import requests
 from PIL import Image, ImageOps
 
-import numpy as np  # ✅ for mobile orientation heuristic
+import numpy as np
 
 # PDF
 from reportlab.pdfgen import canvas
@@ -31,7 +31,7 @@ except Exception:
 st.set_page_config(page_title="Documentos complementarios", page_icon="📷", layout="centered")
 
 # ----------------------------------------------------
-# STYLE (CRITICAL FIXES)
+# STYLE (FIXED: UN-CROPPED VIDEO & BLUE BUTTONS)
 # ----------------------------------------------------
 st.markdown(
     """
@@ -78,31 +78,30 @@ input, textarea {
 }
 
 /* ==================================================
-   CAMERA STYLING FIXES (ACCURATE PREVIEW)
+   CAMERA STYLING FIXES
    ================================================== */
 
 /* 1. Main Camera Container */
 [data-testid="stCameraInput"]{
   width: 100% !important;
-  background: #000000 !important; /* Black background for letterboxing */
+  background: #000000 !important; /* Black background to show limits clearly */
   border-radius: 14px !important;
   position: relative !important; 
-  overflow: hidden !important; /* Keep everything contained */
+  overflow: hidden !important; 
 }
 
 /* 2. THE VIDEO FEED (Streaming) & IMAGE PREVIEW (Captured)
-   CRITICAL FIX: 'object-fit: contain' ensures the WHOLE sensor view 
-   is visible. It prevents zooming/cropping. */
+   CRITICAL: 'object-fit: contain' ensures NO CROPPING. 
+   It shows the full sensor output. */
 [data-testid="stCameraInput"] video,
 [data-testid="stCameraInput"] img {
   width: 100% !important;
   height: auto !important;
-  min-height: 50vh !important; /* Ensure it has height */
-  object-fit: contain !important; /* This stops the cropping */
+  min-height: 50vh !important;
+  object-fit: contain !important; /* Forces the original, uncropped view */
 }
 
-/* 3. SHUTTER BUTTON ('Take Photo')
-   Targeting the main action button */
+/* 3. SHUTTER BUTTON ('Take Photo') */
 [data-testid="stCameraInput"] button:not(:has(svg)) {
   background: #00A8E0 !important;
   color: #FFFFFF !important;
@@ -117,30 +116,30 @@ input, textarea {
 [data-testid="stCameraInput"] button:not(:has(svg)) * { color: #FFFFFF !important; }
 
 /* 4. SWITCH CAMERA & CLEAR PHOTO BUTTONS
-   These usually contain SVGs. We force them to be visible on top. */
+   UPDATED: Now using the BRAND BLUE background */
 [data-testid="stCameraInput"] button:has(svg) {
-  background: rgba(0,0,0,0.6) !important;
-  border: 1px solid rgba(255,255,255,0.6) !important;
+  background: #00A8E0 !important; /* Blue background */
+  border: 1px solid rgba(255,255,255,0.2) !important;
   border-radius: 8px !important;
   z-index: 9999 !important;
   opacity: 1 !important;
+  color: #FFFFFF !important;
 }
 [data-testid="stCameraInput"] button:has(svg) svg {
   fill: white !important;
   stroke: white !important;
 }
 [data-testid="stCameraInput"] button:has(svg):hover {
-  background: rgba(0,0,0,0.8) !important;
+  filter: brightness(0.95) !important;
 }
 
-/* --- MOBILE LANDSCAPE SPECIFIC --- 
-   This applies when the phone is turned sideways */
+/* --- MOBILE LANDSCAPE SPECIFIC --- */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
 
   /* A. Maximize Container */
   div[data-testid="stCameraInput"],
   div[data-testid="stCameraInput"] > div {
-    height: 85vh !important; /* Use almost full screen height */
+    height: 85vh !important; 
     width: 100% !important;
     background: #000000 !important;
     border: none !important;
@@ -155,7 +154,7 @@ input, textarea {
   div[data-testid="stCameraInput"] img {
     height: 100% !important;
     width: 100% !important;
-    object-fit: contain !important; /* CRITICAL */
+    object-fit: contain !important; /* Keeps original view, no cropping */
   }
 
   /* C. Floating 'Take Photo' Button (Bottom Center) */
@@ -169,7 +168,7 @@ input, textarea {
     white-space: nowrap !important;
   }
 
-  /* D. Floating 'Switch Camera' (Top Right) */
+  /* D. Floating 'Switch Camera' & 'Clear Photo' (Top Right) */
   div[data-testid="stCameraInput"] button:has(svg) {
     position: absolute !important;
     top: 15px !important;
