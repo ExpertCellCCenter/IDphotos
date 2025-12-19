@@ -110,20 +110,24 @@ div[data-testid="stCameraInput"] img{
 /* Only applies when screen is landscape and height is small (like a phone) */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
   
-  /* 1. Force the container to not be 100% wide. 
-     We limit width to 60vh (60% of viewport height) so the resulting height stays small. */
+  /* 1. Target the container itself */
   div[data-testid="stCameraInput"] {
-    width: auto !important;
-    max-width: 60vh !important; 
-    margin: 0 auto !important; /* Center it */
+    width: 90% !important;       /* Make it wider */
+    max-width: 600px !important; /* Limit width on larger landscape screens */
+    height: auto !important;
+    max-height: 70vh !important; /* Limit height to keep button visible */
+    margin: 0 auto !important;   /* Center it */
+    padding: 0 !important;       /* Remove padding */
+    background-color: transparent !important; /* Remove dark background */
+    overflow: hidden !important; /* Ensure video doesn't overflow */
   }
 
-  /* 2. Force the video to fit within that smaller container */
+  /* 2. Force the video/image to fill the container without borders */
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
-    max-height: 60vh !important;
-    width: 100% !important; 
-    object-fit: contain !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important; /* Crop to fill the space, no borders */
   }
 }
 
