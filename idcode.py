@@ -81,7 +81,7 @@ input, textarea {
   border-color: rgba(0,168,224,0.45) !important;
 }
 
-/* CAMERA */
+/* CAMERA INPUT STYLING */
 [data-testid="stCameraInput"]{
   background: #F7FAFC !important;
   border: 1px dashed rgba(0,0,0,0.20) !important;
@@ -98,7 +98,7 @@ input, textarea {
 [data-testid="stCameraInput"] button *{ color: #FFFFFF !important; }
 [data-testid="stCameraInput"] button:hover{ filter: brightness(0.95) !important; }
 
-/* Make camera preview responsive (Default) */
+/* --- DEFAULT (PORTRAIT) BEHAVIOR --- */
 div[data-testid="stCameraInput"] video,
 div[data-testid="stCameraInput"] img{
   width: 100% !important;
@@ -106,16 +106,24 @@ div[data-testid="stCameraInput"] img{
   object-fit: contain !important;
 }
 
-/* FIX: Mobile Landscape Mode 
-   When screen is landscape and short (mobile), limit height and let width adjust */
+/* --- MOBILE LANDSCAPE FIX --- */
+/* Only applies when screen is landscape and height is small (like a phone) */
 @media only screen and (orientation: landscape) and (max-height: 500px) {
+  
+  /* 1. Force the container to not be 100% wide. 
+     We limit width to 60vh (60% of viewport height) so the resulting height stays small. */
+  div[data-testid="stCameraInput"] {
+    width: auto !important;
+    max-width: 60vh !important; 
+    margin: 0 auto !important; /* Center it */
+  }
+
+  /* 2. Force the video to fit within that smaller container */
   div[data-testid="stCameraInput"] video,
   div[data-testid="stCameraInput"] img {
-    width: auto !important;       
-    height: auto !important;      
-    max-height: 70vh !important;  
-    margin: 0 auto !important;    
-    display: block !important;
+    max-height: 60vh !important;
+    width: 100% !important; 
+    object-fit: contain !important;
   }
 }
 
