@@ -566,6 +566,16 @@ st.success(f"Folio válido: **{folio}**")
 
 base_folder = st.secrets["azure_app"].get("onedrive_base_folder", "fotos_cotizaciones")
 
+# ✅ ADDED: INE PHOTO INSTRUCTIONS IMAGE (just above Galería)
+instrucciones_path = Path(__file__).parent / "ineCorrecto.jpeg"
+if not instrucciones_path.exists():
+    instrucciones_path = Path("/mnt/data/ineCorrecto.jpeg")
+
+if instrucciones_path.exists():
+    st.image(str(instrucciones_path), use_container_width=True)
+else:
+    st.warning("No se encontró la imagen de instrucciones (ineCorrecto.jpeg).")
+
 st.subheader("📁 Galería")
 uploaded_files = st.file_uploader("Sube fotos", type=["jpg","png","heic"], accept_multiple_files=True)
 if uploaded_files:
@@ -649,7 +659,8 @@ if st.button("💾 Subir fotos", type="primary"):
             pdf_b = build_pdf_from_images_high_quality(pdf_imgs)
             pdf_n = f"{folio}_fotos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
             upload_small_file_to_folder(target_id, pdf_n, pdf_b, "application/pdf")
-        except Exception: pass
+        except Exception: 
+            pass
         
         bar.progress(100)
         status_text.markdown("✅ **Finalizado**")
@@ -659,5 +670,3 @@ if st.button("💾 Subir fotos", type="primary"):
         st.rerun()
     except Exception as e:
         st.error(f"Error: {e}")
-
-
